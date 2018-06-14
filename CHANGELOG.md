@@ -1,5 +1,12 @@
 # [master]
 
+# [0.5.0] - 2018-06-14
+
+- Support multiple output languages.
+- Add Java/JNI generators.
+- Add C# generator.
+- Fix C headers dependencies resolving (i.e. output header includes in the correct order).
+
 # [0.4.1] - 2017-04-11
 
 ## Fixed
