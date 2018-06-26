@@ -1,5 +1,11 @@
 # [master]
 
+# [0.5.1] - 2018-06-26
+
+- Fix incorrectly generated C# delegates: they were garbage collected because of automatically
+  created and recycled references. Instead, we use static references now.
+- Change license to dual MIT/BSD.
+
 # [0.5.0] - 2018-06-14
 
 - Support multiple output languages.
