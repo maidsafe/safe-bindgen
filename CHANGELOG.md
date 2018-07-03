@@ -1,5 +1,9 @@
 # [master]
 
+# [0.5.2] - 2018-07-03
+
+- Make generated C# delegates readonly
+
 # [0.5.1] - 2018-06-26
 
 - Fix incorrectly generated C# delegates: they were garbage collected because of automatically
