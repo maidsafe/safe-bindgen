@@ -1,5 +1,12 @@
 # [master]
 
+# [0.6.0] - 2018-08-10
+
+- Fix `illegal class name` error in Java/JNI
+- Fix `pub(crate)` items being parsed as a part of public API
+- Update `syntex_syntax` dependency to 0.59.0
+- Add more tests for the C language
+
 # [0.5.2] - 2018-07-03
 
 - Make generated C# delegates readonly
