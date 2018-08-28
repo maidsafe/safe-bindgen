@@ -1,5 +1,11 @@
 # [master]
 
+# [0.7.0] - 2018-08-28
+
+- Upgrade unwrap version to 1.2.0
+- Use rust 1.28.0 stable / 2018-07-07 nightly
+- rustfmt 0.99.2 and clippy-0.0.212
+
 # [0.6.0] - 2018-08-10
 
 - Fix `illegal class name` error in Java/JNI
