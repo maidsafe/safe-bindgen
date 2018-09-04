@@ -1,5 +1,9 @@
 # [master]
 
+# [0.8.0] - 2018-09-04
+
+- Support new API to pass input source code as a string (`Bindgen::source_code`).
+
 # [0.7.0] - 2018-08-28
 
 - Upgrade unwrap version to 1.2.0
