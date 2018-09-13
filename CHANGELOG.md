@@ -1,8 +1,13 @@
 # [master]
 
+# [0.9.0] - 2018-09-13
+
+- Use custom cached class loader for Java/JNI objects instantiation (this fixes the Android
+  freezing issue)
+
 # [0.8.0] - 2018-09-04
 
-- Support new API to pass input source code as a string (`Bindgen::source_code`).
+- Support new API to pass input source code as a string (`Bindgen::source_code`)
 
 # [0.7.0] - 2018-08-28
 
