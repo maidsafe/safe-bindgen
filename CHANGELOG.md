@@ -1,5 +1,13 @@
 # [master]
 
+# [0.10.0] - 2018-09-18
+
+- Use `EnvGuard` from `ffi_utils` to detach JNI threads only when needed (i.e. if we
+  successfully acquire JNI environment through `GetEnv()`, we do not need to detach the
+  native thread)
+- Change the class finder function signature (now it returns result wrapped
+  as `Result<AutoLocal, JniError>`)
+
 # [0.9.0] - 2018-09-13
 
 - Use custom cached class loader for Java/JNI objects instantiation (this fixes the Android
