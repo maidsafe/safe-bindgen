@@ -5,13 +5,13 @@ mod types;
 
 use common::{
     self, append_output, check_no_mangle, is_array_arg, is_user_data_arg, parse_attr,
-    retrieve_docstring, Outputs,
+    retrieve_docstring, FilterMode, Outputs,
 };
 use inflector::Inflector;
 use java::types::{callback_name, java_type_to_str, rust_to_java, struct_to_java_classname};
 use jni::signature::JavaType;
 use rustfmt;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use struct_field::{transform_struct_fields, StructField};
 use syntax::abi::Abi;
 use syntax::print::pprust;
@@ -21,6 +21,8 @@ use Level;
 
 pub struct LangJava {
     context: Context,
+    filter: HashSet<String>,
+    filter_mode: FilterMode,
 }
 
 pub struct Context {
@@ -51,6 +53,8 @@ impl Default for Context {
 impl LangJava {
     pub fn new(type_map: HashMap<&'static str, JavaType>) -> Self {
         LangJava {
+            filter: Default::default(),
+            filter_mode: FilterMode::Blacklist,
             context: Context {
                 type_map,
                 lib_name: "backend".to_owned(),
@@ -108,7 +112,29 @@ impl LangJava {
             lines = lines
         );
     }
+
+    /// Add the identifier to the filter.
+    /// If the filter mode is `Blacklist` (the default), the identifiers in the
+    /// filter are ignored.
+    /// If it is `Whitelist`, the identifiers not in the filter are ignored.
+    pub fn filter<T: Into<String>>(&mut self, ident: T) {
+        let _ = self.filter.insert(ident.into());
+    }
+
+    /// Clears the current filter and sets the filter mode.
+    pub fn reset_filter(&mut self, filter_mode: FilterMode) {
+        self.filter.clear();
+        self.filter_mode = filter_mode;
+    }
+
+    fn is_ignored(&self, ident: &str) -> bool {
+        match self.filter_mode {
+            FilterMode::Blacklist => self.filter.contains(ident),
+            FilterMode::Whitelist => !self.filter.contains(ident),
+        }
+    }
 }
+
 impl common::Lang for LangJava {
     /// Convert a Rust function declaration into Java.
     fn parse_fn(
@@ -117,6 +143,10 @@ impl common::Lang for LangJava {
         _module: &[String],
         outputs: &mut Outputs,
     ) -> Result<(), Error> {
+        let name = item.ident.name.as_str();
+        if self.is_ignored(&name) {
+            return Ok(());
+        }
         let (no_mangle, docs) = parse_attr(&item.attrs, check_no_mangle, |attr| {
             retrieve_docstring(attr, "")
         });
@@ -167,6 +197,10 @@ impl common::Lang for LangJava {
         _module: &[String],
         outputs: &mut Outputs,
     ) -> Result<(), Error> {
+        let name = item.ident.name.as_str();
+        if self.is_ignored(&name) {
+            return Ok(());
+        }
         let (repr_c, docs) = parse_attr(&item.attrs, common::check_repr_c, |attr| {
             retrieve_docstring(attr, "")
         });
