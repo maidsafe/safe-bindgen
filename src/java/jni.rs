@@ -475,10 +475,6 @@ fn generate_multi_jni_callback(
                         &[ #(#args),* ],
                     ));
                 }
-
-                if cbs.iter().any(|cb| cb.is_some()) {
-                    mem::forget(cbs);
-                }
             }
         }
     };
