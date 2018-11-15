@@ -1,5 +1,14 @@
 # [master]
 
+# [0.11.0] - 2018-11-15
+
+- Allow to filter symbols in Java bindgen. This can be used for manual reimplementation of
+  certain JNI functions in special cases.
+- Pass through the compiler feature flags for generated JNI functions (as some functions
+  can be feature-gated).
+- Fix leaking local references. Because the Android local reference table is limited to 512
+  entries it is important to deallocate the local references as soon as possible.
+
 # [0.10.0] - 2018-09-18
 
 - Use `EnvGuard` from `ffi_utils` to detach JNI threads only when needed (i.e. if we
