@@ -484,7 +484,7 @@ fn source_file_from_cargo() -> Result<String, Error> {
                 level: Level::Fatal,
                 span: None,
                 message: "could not read cargo manifest".into(),
-            })
+            });
         }
     };
 
@@ -495,7 +495,7 @@ fn source_file_from_cargo() -> Result<String, Error> {
                 level: Level::Fatal,
                 span: None,
                 message: "could not parse cargo manifest".into(),
-            })
+            });
         }
     };
 

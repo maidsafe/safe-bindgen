@@ -98,7 +98,7 @@ fn callback_arg_to_java(
                 level: Level::Error,
                 span: Some(fn_span),
                 message: "callbacks that don't have C ABI are not supported".into(),
-            })
+            });
         }
     }
 

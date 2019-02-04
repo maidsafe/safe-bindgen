@@ -283,7 +283,7 @@ impl common::Lang for LangJava {
                     level: Level::Error,
                     span: None,
                     message: "no jni bindings generated?".to_owned(),
-                })
+                });
             }
         }
 
@@ -584,7 +584,7 @@ fn callback_to_java(
                 level: Level::Error,
                 span: Some(fn_span),
                 message: "callbacks that don't have C ABI are not supported".into(),
-            })
+            });
         }
     }
 
