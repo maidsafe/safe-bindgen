@@ -14,8 +14,7 @@
     exceeding_bitshifts,
     mutable_transmutes,
     no_mangle_const_items,
-    unknown_crate_types,
-    warnings
+    unknown_crate_types
 )]
 #![deny(
     deprecated,
@@ -27,7 +26,6 @@
     unconditional_recursion,
     unknown_lints,
     unsafe_code,
-    unused,
     unused_allocation,
     unused_attributes,
     unused_comparisons,
@@ -327,11 +325,10 @@ impl Bindgen {
         outputs: &mut Outputs,
         path: &PathBuf,
     ) -> Result<(), Vec<Error>> {
-        let base_path = unwrap!(path.parent());
+        let _base_path = unwrap!(path.parent());
         let mod_path = unwrap!(path.to_str()).to_string();
 
         // Parse the top level mod.
-
 
         // Creates AST for the entire file
         let mut file = unwrap!(File::open(path));
@@ -339,74 +336,106 @@ impl Bindgen {
         unwrap!(file.read_to_string(&mut content));
         let _ast = unwrap!(syn::parse_file(&content));
 
-        // TODO: Extract Mod from AST
-        for item in _ast.items{}
-
-        let krate = unwrap!(syntax::parse::parse_crate_from_file(path, &self.session));
         let module = convert_lib_path_to_module(&PathBuf::from(mod_path.clone()));
-        eprintln!("Parsing {} ({:?})", module.join("::"), mod_path);
 
-        parse::parse_mod(lang, &krate.module, &module, outputs)?;
+        // TODO: Extract Mod from AST
+        for _item in _ast.items {
+            match &_item {
+                syn::Item::Mod(ref _item) => {
+                    println!("Mod found");
+                    parse::parse_mod(lang, _item, &module, outputs);
+                }
+                syn::Item::Const(..) => {
+                    println!("Const found"); /*lang.parse_const(lang,_item,mod_path,outputs)*/
+                }
+                syn::Item::Type(..) => {
+                    println!("Type found"); /*lang.parse_ty(lang,_item,mod_path,outputs)*/
+                }
+                syn::Item::Enum(..) => {
+                    println!("Enum found"); /*lang.parse_enum(lang,_item,mod_path,outputs)*/
+                }
+                syn::Item::Fn(..) => {
+                    println!("Fn found"); /*lang.parse_fn(lang,_item,mod_path,outputs)*/
+                }
+                syn::Item::Struct(..) => {
+                    println!("Struct found"); /*lang.parse_struct(lang,_item,mod_path,outputs)*/
+                }
+                _ => {
+                    println!("Item not of our interest found");
+                }
+            }
+        }
+        //let krate = unwrap!(syntax::parse::parse_crate_from_file(path, &self.session));
+        //let module = convert_lib_path_to_module(&PathBuf::from(mod_path.clone()));
+        //eprintln!("Parsing {} ({:?})", module.join("::"), mod_path);
+        //parse::parse_mod(lang, &krate.module, &module, outputs)?;
 
         // Parse other mods.
-        let modules = parse::imported_mods(&krate.module);
-        for module in modules {
-            let mut mod_path = base_path.join(&format!(
-                "{}.rs",
-                module.join(&path::MAIN_SEPARATOR.to_string())
-            ));
-
-            if !mod_path.exists() {
-                mod_path = base_path.join(&format!(
-                    "{}/mod.rs",
-                    module.join(&path::MAIN_SEPARATOR.to_string())
-                ));
-            }
-
-            eprintln!("Parsing {} ({:?})", module.join("::"), mod_path);
-
-
-            // Creates AST for the entire file
-            let mut file = unwrap!(File::open(path));
-            let mut content = String::new();
-            unwrap!(file.read_to_string(&mut content));
-            let _ast = unwrap!(syn::parse_file(&content));
-
-            // TODO: Extract Mod from AST
-            for item in _ast.items{}
-
-            let krate = unwrap!(syntax::parse::parse_crate_from_file(
-                &mod_path,
-                &self.session
-            ));
-            parse::parse_mod(lang, &krate.module, &module, outputs)?;
-        }
+        //        let modules = parse::imported_mods(&krate.module);
+        //        for module in modules {
+        //            let mut mod_path = base_path.join(&format!(
+        //                "{}.rs",
+        //                module.join(&path::MAIN_SEPARATOR.to_string())
+        //            ));
+        //
+        //
+        //            if !mod_path.exists() {
+        //                mod_path = base_path.join(&format!(
+        //                    "{}/mod.rs",
+        //                    module.join(&path::MAIN_SEPARATOR.to_string())
+        //                ));
+        //            }
+        //
+        //            eprintln!("Parsing {} ({:?})", module.join("::"), mod_path);
         Ok(())
     }
 
     fn compile_from_source<L: Lang>(
         &self,
-        lang: &mut L,
-        outputs: &mut Outputs,
+        _lang: &mut L,
+        _outputs: &mut Outputs,
         file_name: String,
         source: String,
     ) -> Result<(), Vec<Error>> {
         let module = convert_lib_path_to_module(&PathBuf::from(file_name.clone()));
 
-        let _ast: syn::File= unwrap!(syn::parse_str(&source));
+        let _ast: syn::File = unwrap!(syn::parse_str(&source));
 
-        //TODO: Extract Mod from AST
-        for item in _ast.items{}
+        for _item in _ast.items {
+            match &_item {
+                syn::Item::Mod(ref _item) => {
+                    println!("Mod found");
+                    parse::parse_mod(_lang, _item, &module, _outputs);
+                }
+                syn::Item::Const(..) => {
+                    println!("Const found"); /*lang.parse_const(lang,_item,mod_path,outputs)*/
+                }
+                syn::Item::Type(..) => {
+                    println!("Type found"); /*lang.parse_ty(lang,_item,mod_path,outputs)*/
+                }
+                syn::Item::Enum(..) => {
+                    println!("Enum found"); /*lang.parse_enum(lang,_item,mod_path,outputs)*/
+                }
+                syn::Item::Fn(..) => {
+                    println!("Fn found"); /*lang.parse_fn(lang,_item,mod_path,outputs)*/
+                }
+                syn::Item::Struct(..) => {
+                    println!("Struct found"); /*lang.parse_struct(lang,_item,mod_path,outputs)*/
+                }
+                _ => {
+                    println!("Item not of our interest found");
+                }
+            }
+        }
 
-        let krate = unwrap!(syntax::parse::parse_crate_from_source_str(
-            file_name,
-            source,
-            &self.session
-        ));
+        //        let _krate = unwrap!(syntax::parse::parse_crate_from_source_str(
+        //            file_name,
+        //            source,
+        //            &self.session
+        //        ));
+        //
+        //        eprintln!("Parsing {} (from string)", module.join("::"));
 
-        eprintln!("Parsing {} (from string)", module.join("::"));
-
-        parse::parse_mod(lang, &krate.module, &module, outputs)?;
         Ok(())
     }
 

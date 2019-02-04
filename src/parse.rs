@@ -38,29 +38,89 @@ pub fn imported_mods(module: &ast::Mod) -> Vec<Vec<String>> {
 /// Iterates through all items in the module and dispatches to correct methods, then pulls all
 /// the results together into a header.
 pub fn parse_mod<L: Lang>(
-    lang: &mut L,
-    module: &ast::Mod,
-    module_path: &[String],
-    outputs: &mut Outputs,
+    _lang: &mut L,
+    module: &syn::ItemMod,
+    _module_path: &[String],
+    _outputs: &mut Outputs,
 ) -> Result<(), Vec<Error>> {
     let mut errors = vec![];
 
-    for item in &module.items {
+    for item in module.clone().content.unwrap().1 {
         // If it's not visible it can't be called from C.
-        if let ast::Visibility::Inherited = item.vis {
-            continue;
-        }
-        if let ast::Visibility::Crate(_) = item.vis {
-            continue;
+        match item {
+            syn::Item::Mod(ref item) => {
+                if let syn::Visibility::Inherited = item.vis {
+                    continue;
+                }
+                if let syn::Visibility::Crate(_) = item.vis {
+                    continue;
+                }
+            }
+            syn::Item::Const(ref item) => {
+                if let syn::Visibility::Inherited = item.vis {
+                    continue;
+                }
+                if let syn::Visibility::Crate(_) = item.vis {
+                    continue;
+                }
+            }
+            syn::Item::Type(ref item) => {
+                if let syn::Visibility::Inherited = item.vis {
+                    continue;
+                }
+                if let syn::Visibility::Crate(_) = item.vis {
+                    continue;
+                }
+            }
+            syn::Item::Enum(ref item) => {
+                if let syn::Visibility::Inherited = item.vis {
+                    continue;
+                }
+                if let syn::Visibility::Crate(_) = item.vis {
+                    continue;
+                }
+            }
+            syn::Item::Fn(ref item) => {
+                if let syn::Visibility::Inherited = item.vis {
+                    continue;
+                }
+                if let syn::Visibility::Crate(_) = item.vis {
+                    continue;
+                }
+            }
+            syn::Item::Struct(ref item) => {
+                if let syn::Visibility::Inherited = item.vis {
+                    continue;
+                }
+                if let syn::Visibility::Crate(_) = item.vis {
+                    continue;
+                }
+            }
+            _ => {}
         }
 
         // Dispatch to correct method.
-        let res = match item.node {
-            ast::ItemKind::Const(..) => lang.parse_const(item, module_path, outputs),
-            ast::ItemKind::Ty(..) => lang.parse_ty(item, module_path, outputs),
-            ast::ItemKind::Enum(..) => lang.parse_enum(item, module_path, outputs),
-            ast::ItemKind::Struct(..) => lang.parse_struct(item, module_path, outputs),
-            ast::ItemKind::Fn(..) => lang.parse_fn(item, module_path, outputs),
+        let res = match item {
+            syn::Item::Const(..) => {
+                println!("Const found inside mod"); /*lang.parse_const(lang,_item,mod_path,outputs)*/
+                Ok(())
+            }
+            syn::Item::Type(..) => {
+                println!("Type found inside mod"); /*lang.parse_ty(lang,_item,mod_path,outputs)*/
+                Ok(())
+            }
+            syn::Item::Enum(..) => {
+                println!("Enum found inside mod"); /*lang.parse_enum(lang,_item,mod_path,outputs)*/
+                Ok(())
+            }
+            syn::Item::Fn(..) => {
+                println!("Fn found inside mod"); /*lang.parse_fn(lang,_item,mod_path,outputs)*/
+                Ok(())
+            }
+            syn::Item::Struct(..) => {
+                println!("Struct found inside mod"); /*lang.parse_struct(lang,_item,mod_path,outputs)*/
+                Ok(())
+            }
             _ => Ok(()),
         };
 
