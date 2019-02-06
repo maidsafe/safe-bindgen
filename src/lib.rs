@@ -338,7 +338,6 @@ impl Bindgen {
 
         let module = convert_lib_path_to_module(&PathBuf::from(mod_path.clone()));
 
-        // TODO: Extract Mod from AST
         for _item in _ast.items {
             match &_item {
                 syn::Item::Mod(ref _item) => {

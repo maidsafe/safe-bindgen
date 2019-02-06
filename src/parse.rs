@@ -40,7 +40,7 @@ pub fn imported_mods(module: &ast::Mod) -> Vec<Vec<String>> {
 pub fn parse_mod<L: Lang>(
     _lang: &mut L,
     module: &syn::ItemMod,
-    _module_path: &[String],
+    _mod_path: &[String],
     _outputs: &mut Outputs,
 ) -> Result<(), Vec<Error>> {
     let mut errors = vec![];
@@ -101,6 +101,11 @@ pub fn parse_mod<L: Lang>(
 
         // Dispatch to correct method.
         let res = match item {
+            syn::Item::Mod(ref _item) => {
+                println!("Mod found inside a Mod");
+                parse_mod(_lang, _item, _mod_path, _outputs);
+                Ok(())
+            }
             syn::Item::Const(..) => {
                 println!("Const found inside mod"); /*lang.parse_const(lang,_item,mod_path,outputs)*/
                 Ok(())
