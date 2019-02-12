@@ -21,7 +21,7 @@ pub trait Lang {
     /// language constant.
     fn parse_const(
         &mut self,
-        _item: &ast::Item,
+        _item: &syn::ItemStruct,
         _module: &[String],
         _outputs: &mut Outputs,
     ) -> Result<(), Error> {
@@ -125,10 +125,10 @@ pub fn is_array_arg(arg: &ast::Arg, next_arg: Option<&ast::Arg>) -> bool {
 ///
 /// Check that at least one attribute matches some criteria (usually `#[repr(C)]` or `#[no_mangle]`)
 /// and optionally retrieve a String from it (usually a docstring).
-pub fn parse_attr<C, R>(attrs: &[ast::Attribute], check: C, retrieve: R) -> (bool, String)
+pub fn parse_attr<C, R>(attrs: &[syn::Attribute], check: C, retrieve: R) -> (bool, String)
 where
-    C: Fn(&ast::Attribute) -> bool,
-    R: Fn(&ast::Attribute) -> Option<String>,
+    C: Fn(&syn::Attribute) -> bool,
+    R: Fn(&syn::Attribute) -> Option<String>,
 {
     let mut check_passed = false;
     let mut retrieved_str = String::new();
@@ -147,14 +147,14 @@ where
 }
 
 /// Check the attribute is #[repr(C)].
-pub fn check_repr_c(attr: &ast::Attribute) -> bool {
-    match unwrap!(attr.meta()).node {
-        ast::MetaItemKind::List(ref word) if attr.check_name("repr") => {
-            match word.first() {
+pub fn check_repr_c(attr: &syn::Attribute) -> bool {
+    match attr.parse_meta() {
+        syn::Meta::List(ref word) if attr.path == "repr" => {
+            match word.nested.first() {
                 Some(word) => {
-                    match word.node {
+                    match word.into_value() {
                         // Return true only if attribute is #[repr(C)].
-                        ast::NestedMetaItemKind::MetaItem(ref item) if item.name == "C" => true,
+                        syn::NestedMeta::Meta(ref item) if item.name() == "C" => true,
                         _ => false,
                     }
                 }
@@ -166,12 +166,12 @@ pub fn check_repr_c(attr: &ast::Attribute) -> bool {
 }
 
 /// If the attribute is  a docstring, indent it the required amount and return it.
-pub fn retrieve_docstring(attr: &ast::Attribute, prepend: &str) -> Option<String> {
-    match unwrap!(attr.meta()).node {
-        ast::MetaItemKind::NameValue(ref val) if attr.check_name("doc") => {
-            match val.node {
+pub fn retrieve_docstring(attr: &syn::Attribute, prepend: &str) -> Option<String> {
+    match attr.parse_meta() {
+        syn::Meta::NameValue(ref val) if attr.path == "doc" => {
+            match val.lit {
                 // Docstring attributes omit the trailing newline.
-                ast::LitKind::Str(ref docs, _) => Some(format!("{}{}\n", prepend, docs)),
+                syn::Lit::Str(ref docs) => Some(format!("{}{}\n", prepend, docs)),
                 _ => unreachable!("docs must be literal strings"),
             }
         }

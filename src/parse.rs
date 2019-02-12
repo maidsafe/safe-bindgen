@@ -55,7 +55,7 @@ pub fn parse_mod<L: Lang>(
                 if let syn::Visibility::Crate(_) = item.vis {
                     continue;
                 }
-            },
+            }
             syn::Item::Const(ref item) => {
                 if let syn::Visibility::Inherited = item.vis {
                     continue;
@@ -63,7 +63,7 @@ pub fn parse_mod<L: Lang>(
                 if let syn::Visibility::Crate(_) = item.vis {
                     continue;
                 }
-            },
+            }
             syn::Item::Type(ref item) => {
                 if let syn::Visibility::Inherited = item.vis {
                     continue;
@@ -71,7 +71,7 @@ pub fn parse_mod<L: Lang>(
                 if let syn::Visibility::Crate(_) = item.vis {
                     continue;
                 }
-            },
+            }
             syn::Item::Enum(ref item) => {
                 if let syn::Visibility::Inherited = item.vis {
                     continue;
@@ -79,7 +79,7 @@ pub fn parse_mod<L: Lang>(
                 if let syn::Visibility::Crate(_) = item.vis {
                     continue;
                 }
-            },
+            }
             syn::Item::Fn(ref item) => {
                 if let syn::Visibility::Inherited = item.vis {
                     continue;
@@ -87,7 +87,7 @@ pub fn parse_mod<L: Lang>(
                 if let syn::Visibility::Crate(_) = item.vis {
                     continue;
                 }
-            },
+            }
             syn::Item::Struct(ref item) => {
                 if let syn::Visibility::Inherited = item.vis {
                     continue;
@@ -95,8 +95,8 @@ pub fn parse_mod<L: Lang>(
                 if let syn::Visibility::Crate(_) = item.vis {
                     continue;
                 }
-            },
-            _ => {},
+            }
+            _ => {}
         }
 
         // Dispatch to correct method.
@@ -105,23 +105,23 @@ pub fn parse_mod<L: Lang>(
                 println!("Mod found inside a Mod");
                 parse_mod(_lang, item, _mod_path, _outputs);
                 Ok(())
-            },
+            }
             syn::Item::Const(..) => {
                 println!("Const found inside mod"); /*lang.parse_const(lang,_item,mod_path,outputs)*/
                 Ok(())
-            },
+            }
             syn::Item::Type(..) => {
                 println!("Type found inside mod"); /*lang.parse_ty(lang,_item,mod_path,outputs)*/
                 Ok(())
-            },
+            }
             syn::Item::Enum(..) => {
                 println!("Enum found inside mod"); /*lang.parse_enum(lang,_item,mod_path,outputs)*/
                 Ok(())
-            },
+            }
             syn::Item::Fn(..) => {
                 println!("Fn found inside mod"); /*lang.parse_fn(lang,_item,mod_path,outputs)*/
                 Ok(())
-            },
+            }
             syn::Item::Struct(..) => {
                 println!("Struct found inside mod"); /*lang.parse_struct(lang,_item,mod_path,outputs)*/
                 Ok(())

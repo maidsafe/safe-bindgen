@@ -269,11 +269,11 @@ impl Lang for LangC {
     /// Bindgen will error if the struct is generic or if the struct is a unit or tuple struct.
     fn parse_struct(
         &mut self,
-        item: &ast::Item,
+        item: &syn::ItemStruct,
         module: &[String],
         outputs: &mut Outputs,
     ) -> Result<(), Error> {
-        let (repr_c, docs) = parse_attr(&item.attrs, check_repr_c, |attr| {
+        let (repr_c, docs) = parse_attr(&item.attrs[..],check_repr_c, |attr| {
             retrieve_docstring(attr, "")
         });
         // If it's not #[repr(C)] then it can't be called from C.
@@ -284,50 +284,36 @@ impl Lang for LangC {
         let mut buffer = String::new();
         buffer.push_str(&docs);
 
-        let name = item.ident.name.as_str();
+        let name = item.ident.to_string();
         buffer.push_str(&format!("typedef struct {}", name));
 
-        if let ast::ItemKind::Struct(ref variants, ref generics) = item.node {
-            if generics.is_parameterized() {
+        if let syn::Item::Struct(ref item1) = item {
+            if item1.generics.lt_token.is_some() {
                 return Err(Error {
                     level: Level::Error,
-                    span: Some(item.span),
+                    span: Some(item1.span),
                     message: "bindgen can not handle parameterized `#[repr(C)]` structs".into(),
                 });
             }
+            buffer.push_str(" {\n");
+            for field in item1.fields.iter() {
+                let (_, docs) = parse_attr(
+                    &field.attrs[..],
+                    |_| true,
+                    |attr| retrieve_docstring(attr, "\t"),
+                );
+                buffer.push_str(&docs);
 
-            if variants.is_struct() {
-                buffer.push_str(" {\n");
+                let name = match field.ident {
+                    Some(name) => name.to_string(),
+                    None => unreachable!("a tuple struct snuck through"),
+                };
 
-                for field in variants.fields() {
-                    let (_, docs) = parse_attr(
-                        &field.attrs,
-                        |_| true,
-                        |attr| retrieve_docstring(attr, "\t"),
-                    );
-                    buffer.push_str(&docs);
-
-                    let name = match field.ident {
-                        Some(name) => name.name.as_str(),
-                        None => unreachable!("a tuple struct snuck through"),
-                    };
-
-                    let ty = rust_to_c(&*field.ty, &name)?;
-                    self.add_dependencies(module, &ty.1)?;
-                    buffer.push_str(&format!("\t{};\n", ty));
-                }
-
-                buffer.push_str("}");
-            } else if variants.is_tuple() && variants.fields().len() == 1 {
-                // #[repr(C)] pub struct Foo(Bar);  =>  typedef struct Foo Foo;
-            } else {
-                return Err(Error {
-                    level: Level::Error,
-                    span: Some(item.span),
-                    message: "can not handle unit or tuple `#[repr(C)]` structs with >1 members"
-                        .into(),
-                });
+                let ty = rust_to_c(&*field.ty, &name)?;
+                self.add_dependencies(module, &ty.1)?;
+                buffer.push_str(&format!("\t{};\n", ty));
             }
+            buffer.push_str("}");
         } else {
             return Err(Error {
                 level: Level::Bug,
@@ -357,7 +343,7 @@ impl Lang for LangC {
         module: &[String],
         outputs: &mut Outputs,
     ) -> Result<(), Error> {
-        let (no_mangle, docs) = parse_attr(&item.attrs, check_no_mangle, |attr| {
+        let (no_mangle, docs) = parse_attr(&item.attrs[..], check_no_mangle, |attr| {
             retrieve_docstring(attr, "")
         });
         // If it's not #[no_mangle] then it can't be called from C.
@@ -449,12 +435,12 @@ impl Lang for LangC {
 }
 
 /// Turn a Rust type with an associated name or type into a C type.
-pub fn rust_to_c(ty: &ast::Ty, assoc: &str) -> Result<CTypeNamed, Error> {
-    match ty.node {
+pub fn rust_to_c(ty: &syn::Type, assoc: &str) -> Result<CTypeNamed, Error> {
+    match ty {
         // Function pointers make life an absolute pain here.
-        ast::TyKind::BareFn(ref bare_fn) => Ok(CTypeNamed(
+        syn::Type::BareFn(ref bare_fn) => Ok(CTypeNamed(
             Default::default(),
-            fn_ptr_to_c(bare_fn, ty.span, assoc)?,
+            fn_ptr_to_c(bare_fn , assoc)?,
         )),
         // All other types just have a name associated with them.
         _ => Ok(CTypeNamed(assoc.to_string(), anon_rust_to_c(ty)?)),
@@ -462,24 +448,24 @@ pub fn rust_to_c(ty: &ast::Ty, assoc: &str) -> Result<CTypeNamed, Error> {
 }
 
 /// Turn a Rust type into a C type.
-fn anon_rust_to_c(ty: &ast::Ty) -> Result<CType, Error> {
-    match ty.node {
+fn anon_rust_to_c(ty: &syn::Type) -> Result<CType, Error> {
+    match ty {
         // Function pointers should not be in this function.
-        ast::TyKind::BareFn(..) => Err(Error {
+        syn::Type::BareFn(..) => Err(Error {
             level: Level::Error,
-            span: Some(ty.span),
+            span: None,//there is no span for types in syn, hence none
             message:
                 "C function ptrs must have a name or function declaration associated with them"
                     .into(),
         }),
         // Fixed-length arrays, converted into pointers.
-        ast::TyKind::Array(ref ty, _) => {
+        syn::Type::Array(..) => {
             Ok(CType::Ptr(Box::new(anon_rust_to_c(ty)?), CPtrType::Const))
         }
         // Standard pointers.
-        ast::TyKind::Ptr(ref ptr) => ptr_to_c(ptr),
+        syn::Type::Ptr(ref ptr) => ptr_to_c(ptr,ty),
         // Plain old types.
-        ast::TyKind::Path(None, ref path) => path_to_c(path),
+        syn::Type::Path(ref path) => path_to_c(path),
         // Possibly void, likely not.
         _ => {
             let new_type = print::pprust::ty_to_string(ty);
@@ -498,15 +484,16 @@ fn anon_rust_to_c(ty: &ast::Ty) -> Result<CType, Error> {
 }
 
 /// Turn a Rust pointer (*mut or *const) into the correct C form.
-fn ptr_to_c(ty: &ast::MutTy) -> Result<CType, Error> {
-    let new_type = anon_rust_to_c(&ty.ty)?;
-    let const_spec = match ty.mutbl {
+fn ptr_to_c(typeptr: &syn::TypePtr,ty : &syn::Type) -> Result<CType, Error> {
+    let new_type = anon_rust_to_c(ty)?;
+    let mut const_type = match typeptr.mutability {
         // *const T
-        ast::Mutability::Immutable => CPtrType::Const,
-        // *mut T
-        ast::Mutability::Mutable => CPtrType::Mutable,
+        Some(..) => CPtrType::Mutable,
+        _ => match typeptr.const_token {
+            Some(..) => CPtrType::Const,
+            _ => None,
+        }
     };
-
     Ok(CType::Ptr(Box::new(new_type), const_spec))
 }
 
@@ -525,42 +512,41 @@ fn ptr_to_c(ty: &ast::MutTy) -> Result<CType, Error> {
 /// ```
 ///
 /// where `inner` could either be a name or the rest of a function declaration.
-fn fn_ptr_to_c(fn_ty: &ast::BareFnTy, fn_span: codemap::Span, inner: &str) -> Result<CType, Error> {
+fn fn_ptr_to_c(fn_ty: &syn::TypeBareFn, inner: &str) -> Result<CType, Error> {
     if !fn_ty.lifetimes.is_empty() {
         return Err(Error {
             level: Level::Error,
-            span: Some(fn_span),
+            span: None, //there is no span for types in syn, hence none
             message: "bindgen can not handle lifetimes".into(),
         });
     }
 
-    let fn_decl: &ast::FnDecl = &*fn_ty.decl;
-
-    let args = if fn_decl.inputs.is_empty() {
+    let args = if fn_ty.inputs.is_empty() {
         // No args
         vec![]
     } else {
         let mut args = vec![];
-        for arg in &fn_decl.inputs {
-            let arg_name = print::pprust::pat_to_string(&*arg.pat);
-            let arg_type = rust_to_c(&*arg.ty, &arg_name)?;
+        for arg in &fn_ty.inputs {
+            let arg_name1 = arg.name.to_string();
+            //let arg_name = print::pprust::pat_to_string(&*arg.pat);
+            let arg_type = rust_to_c(&*arg.ty, &arg_name1)?;
             args.push(arg_type);
         }
         args
     };
 
-    let output_type = &fn_decl.output;
+    let output_type = &fn_ty.output;
 
     let return_type = match *output_type {
-        ast::FunctionRetTy::Ty(ref ty) if ty.node == ast::TyKind::Never => {
+        syn::ReturnType::Type(_,ref ty) if ty == ast::TyKind::Never => {
             return Err(Error {
                 level: Level::Error,
-                span: Some(ty.span),
+                span: None, //there is no span for types in syn, hence None
                 message: "panics across a C boundary are naughty!".into(),
             });
         }
-        ast::FunctionRetTy::Default(..) => CType::Void,
-        ast::FunctionRetTy::Ty(ref ty) => anon_rust_to_c(&*ty)?,
+        syn::ReturnType::Default(..) => CType::Void,
+        syn::ReturnType::Type(ref ty) => anon_rust_to_c(&*ty)?,
     };
 
     Ok(CType::FnDecl {
@@ -574,25 +560,29 @@ fn fn_ptr_to_c(fn_ty: &ast::BareFnTy, fn_span: codemap::Span, inner: &str) -> Re
 ///
 /// Types hidden behind modules are almost certainly custom types (which wouldn't work) except
 /// types in `libc` which we special case.
-fn path_to_c(path: &ast::Path) -> Result<CType, Error> {
-    if path.segments.is_empty() {
+fn path_to_c(path:  &mut syn::TypePath) -> Result<CType, Error> {
+    if path.path.segments.is_empty() {
         return Err(Error {
             level: Level::Bug,
-            span: Some(path.span),
+            span: None, //there is no span for path in syn, hence none
             message: "invalid type".into(),
         });
     }
 
     // Types in modules, `my_mod::MyType`.
-    if path.segments.len() > 1 {
-        let (ty, module) = path
+    //TODO: WIP[Convert this to Syn]
+    if path.path.segments.len() > 1 {
+        let ty = path
+            .path
             .segments
-            .split_last()
-            .expect("already checked that there were at least two elements");
-        let ty: &str = &ty.identifier.name.as_str();
-        let mut segments = Vec::with_capacity(module.len());
+            .last()
+            .expect("already checked that there were at least two elements");            .split_last()
+        let ty: &str = &ty.to_string();
+        path.path.segments.pop().expect("poping last element for module failed");
+        let module = &path.path.segments;
+        let mut segments = Vec::with_capacity(module);
         for segment in module {
-            segments.push(String::from(&*segment.identifier.name.as_str()));
+            segments.push(&*segment);
         }
         let module = segments.join("::");
         match &*module {
