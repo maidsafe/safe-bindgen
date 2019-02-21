@@ -21,7 +21,7 @@ pub trait Lang {
     /// language constant.
     fn parse_const(
         &mut self,
-        _item: &syn::ItemStruct,
+        _item: &ast::Item,
         _module: &[String],
         _outputs: &mut Outputs,
     ) -> Result<(), Error> {
@@ -31,7 +31,7 @@ pub trait Lang {
     /// Convert `pub type A = B;` into `typedef B A;`.
     fn parse_ty(
         &mut self,
-        _item: &ast::Item,
+        _item: &syn::ItemType,
         _module: &[String],
         _outputs: &mut Outputs,
     ) -> Result<(), Error> {
@@ -41,7 +41,7 @@ pub trait Lang {
     /// Convert a Rust enum into a target language enum.
     fn parse_enum(
         &mut self,
-        _item: &ast::Item,
+        _item: &syn::ItemEnum,
         _module: &[String],
         _outputs: &mut Outputs,
     ) -> Result<(), Error> {
@@ -51,7 +51,7 @@ pub trait Lang {
     /// Convert a Rust struct into a target language struct.
     fn parse_struct(
         &mut self,
-        _item: &ast::Item,
+        _item: &syn::ItemStruct,
         _module: &[String],
         _outputs: &mut Outputs,
     ) -> Result<(), Error> {
@@ -61,7 +61,7 @@ pub trait Lang {
     /// Convert a Rust function declaration into a target language function declaration.
     fn parse_fn(
         &mut self,
-        _item: &ast::Item,
+        _item: &syn::ItemFn,
         _module: &[String],
         _outputs: &mut Outputs,
     ) -> Result<(), Error> {
@@ -85,8 +85,13 @@ pub fn append_output(text: String, file: &str, o: &mut Outputs) {
 }
 
 /// Check the attribute is `#[no_mangle]`.
-pub fn check_no_mangle(attr: &ast::Attribute) -> bool {
-    attr.is_word() && attr.check_name("no_mangle")
+pub fn check_no_mangle(attr: &syn::Attribute) -> bool {
+    if attr.tts.to_string() == "no_mangle" {
+        return true
+    }
+    else {
+        return false
+    }
 }
 
 /// Check the function argument is `user_data: *mut c_void`
