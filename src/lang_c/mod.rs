@@ -173,7 +173,7 @@ impl Lang for LangC {
 
         let name = item.ident.to_string();
         let new_type = match item {
-            syn::ItemEnum => {
+            syn::Item::Type(ref item) => {
                 // Can not yet convert generics.
                 if item.generics.lt_token.is_some() {
                     return Ok(());
@@ -223,7 +223,7 @@ impl Lang for LangC {
 
         let name = item.ident.to_string();
         buffer.push_str(&format!("typedef enum {} {{\n", name));
-        if syn::ItemEnum(..) = item {
+        if let syn::Item::Enum(ref item) = item {
             if item.generics.lt_token.is_some() {
                 return Err(Error {
                     level: Level::Error,
@@ -231,7 +231,6 @@ impl Lang for LangC {
                     message: "bindgen can not handle parameterized `#[repr(C)]` enums".into(),
                 });
             }
-
             for var in item.variants {
                 if var == syn::Fields::Unit {
                     return Err(Error {

@@ -1,10 +1,9 @@
 //! Functions common for all target languages.
 
-use crate::syntax::abi::Abi;
-use crate::syntax::ast;
-use crate::syntax::print::pprust;
-use crate::Error;
 use std::collections::hash_map::{Entry, HashMap};
+use syntax::ast;
+use syntax::print::pprust;
+use Error;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FilterMode {
@@ -21,7 +20,7 @@ pub trait Lang {
     /// language constant.
     fn parse_const(
         &mut self,
-        _item: &ast::Item,
+        _item: &syn::ItemConst,
         _module: &[String],
         _outputs: &mut Outputs,
     ) -> Result<(), Error> {
@@ -87,10 +86,9 @@ pub fn append_output(text: String, file: &str, o: &mut Outputs) {
 /// Check the attribute is `#[no_mangle]`.
 pub fn check_no_mangle(attr: &syn::Attribute) -> bool {
     if attr.tts.to_string() == "no_mangle" {
-        return true
-    }
-    else {
-        return false
+        return true;
+    } else {
+        return false;
     }
 }
 
@@ -186,9 +184,10 @@ pub fn retrieve_docstring(attr: &syn::Attribute, prepend: &str) -> Option<String
 
 /// Returns whether the calling convention of the function is compatible with
 /// C (i.e. `extern "C"`).
-pub fn is_extern(abi: Abi) -> bool {
-    match abi {
-        Abi::C | Abi::Cdecl | Abi::Stdcall | Abi::Fastcall | Abi::System => true,
+pub fn is_extern(abi: syn::Abi) -> bool {
+    match *abi.name.unwrap().value().as_str() {
+        // If it doesn't have a C ABI it can't be called from C.
+        &"C" | &"Cdecl" | &"Stdcall" | &"Fastcall" | &"System" => true,
         _ => false,
     }
 }

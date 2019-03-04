@@ -6,17 +6,15 @@ mod tests;
 
 use self::emit::*;
 use self::intermediate::*;
-use crate::common::{self, FilterMode, Lang, Outputs};
-use crate::output::IndentedWriter;
-use crate::syntax::ast;
-use crate::syntax::print::pprust;
-use crate::Error;
-use crate::Level;
+use common::{self, FilterMode, Lang, Outputs};
 use inflector::Inflector;
+use output::IndentedWriter;
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Display, Write};
 use std::mem;
+use Error;
+use Level;
 
 const INDENT_WIDTH: usize = 2;
 
@@ -293,17 +291,17 @@ impl Default for LangCSharp {
 impl Lang for LangCSharp {
     fn parse_ty(
         &mut self,
-        item: &ast::Item,
+        item: &syn::ItemType,
         _module: &[String],
         _outputs: &mut Outputs,
     ) -> Result<(), Error> {
-        let name = item.ident.name.as_str();
+        let name = item.ident.to_string().as_str();
         if self.is_ignored(&name) {
             return Ok(());
         }
 
-        if let ast::ItemKind::Ty(ref ty, ref generics) = item.node {
-            if generics.is_parameterized() {
+        if let syn::Item::Type(ref ty) = item {
+            if item.generics.lt_token.is_some() {
                 println!(
                     "parameterized type aliases not supported ({}). Skipping.",
                     name,
@@ -311,42 +309,35 @@ impl Lang for LangCSharp {
                 return Ok(());
             }
 
-            let ty = transform_type(ty).ok_or_else(|| Error {
+            let ty = transform_type(syn::Type::from(ty)).ok_or_else(|| Error {
                 level: Level::Error,
                 span: Some(ty.span),
-                message: format!(
-                    "bindgen can not handle the type `{}`",
-                    pprust::ty_to_string(ty)
-                ),
+                message: format!("bindgen can not handle the type `{}`", name),
             })?;
 
             self.aliases.insert(name.to_string(), ty);
         }
-
         Ok(())
     }
 
     fn parse_const(
         &mut self,
-        item: &ast::Item,
+        item: &syn::ItemConst,
         _module: &[String],
         _outputs: &mut Outputs,
     ) -> Result<(), Error> {
-        let name = item.ident.name.as_str();
+        let name = item.ident.to_string().as_str();
         if self.is_ignored(&name) {
             return Ok(());
         }
 
         let docs = common::parse_attr(&item.attrs, |_| true, retrieve_docstring).1;
 
-        if let ast::ItemKind::Const(ref ty, ref expr) = item.node {
-            let item = transform_const(ty, expr).ok_or_else(|| Error {
+        if let syn::Item::Const(ref item) = item {
+            let item = transform_const(&*item.ty, &*item.expr).ok_or_else(|| Error {
                 level: Level::Error,
-                span: Some(expr.span),
-                message: format!(
-                    "bindgen can not handle constant {}",
-                    pprust::item_to_string(item)
-                ),
+                span: Some(item.expr.span),
+                message: format!("bindgen can not handle constant {}", name),
             })?;
             let name = name.to_string();
 
@@ -358,35 +349,32 @@ impl Lang for LangCSharp {
 
     fn parse_enum(
         &mut self,
-        item: &ast::Item,
+        item: &syn::ItemEnum,
         _module: &[String],
         _outputs: &mut Outputs,
     ) -> Result<(), Error> {
-        let name = item.ident.name.as_str();
+        let name = item.ident.to_string().as_str();
         if self.is_ignored(&name) {
             return Ok(());
         }
 
         let (repr_c, docs) =
-            common::parse_attr(&item.attrs, common::check_repr_c, retrieve_docstring);
+            common::parse_attr(&item.attrs[..], common::check_repr_c, retrieve_docstring);
 
         // If it's not #[repr(C)] ignore it.
         if !repr_c {
             return Ok(());
         }
 
-        if let ast::ItemKind::Enum(ast::EnumDef { ref variants }, ref generics) = item.node {
-            if generics.is_parameterized() {
-                return Err(unsupported_generics_error(item, "enums"));
+        if let syn::Item::Enum(ref item_enum) = item {
+            if item_enum.generics.lt_token.is_some() {
+                return Err(unsupported_generics_error(syn::Item::from(item), "enums"));
             }
 
-            let item = transform_enum(variants).ok_or_else(|| Error {
+            let item = transform_enum(item.variants[..]).ok_or_else(|| Error {
                 level: Level::Error,
                 span: Some(item.span),
-                message: format!(
-                    "bindgen can not handle enum {}",
-                    pprust::item_to_string(item)
-                ),
+                message: format!("bindgen can not handle enum {}", item.ident.to_string()),
             })?;
             let name = name.to_string();
 
@@ -398,43 +386,40 @@ impl Lang for LangCSharp {
 
     fn parse_struct(
         &mut self,
-        item: &ast::Item,
+        item: &syn::ItemStruct,
         _module: &[String],
         _outputs: &mut Outputs,
     ) -> Result<(), Error> {
-        let name = item.ident.name.as_str();
+        let name = item.ident.to_string();
         if self.is_ignored(&name) {
             return Ok(());
         }
 
         let (repr_c, docs) =
-            common::parse_attr(&item.attrs, common::check_repr_c, retrieve_docstring);
+            common::parse_attr(&item.attrs[..], common::check_repr_c, retrieve_docstring);
 
         // If it's not #[repr(C)] ignore it.
         if !repr_c {
             return Ok(());
         }
 
-        if let ast::ItemKind::Struct(ref variants, ref generics) = item.node {
-            if generics.is_parameterized() {
-                return Err(unsupported_generics_error(item, "structs"));
+        if let syn::Item::Struct(ref item) = item {
+            if item.generics.lt_token.is_some() {
+                return Err(unsupported_generics_error(syn::Item::from(item), "structs"));
             }
+            //TODO: syn doesn't have support for StructVariants
+            //            if   {
+            //                return Err(Error {
+            //                    level: Level::Error,
+            //                    span: Some(item.span),
+            //                    message: format!("bindgen can not handle unit or tuple structs ({})", name),
+            //                });
+            //            }
 
-            if !variants.is_struct() {
-                return Err(Error {
-                    level: Level::Error,
-                    span: Some(item.span),
-                    message: format!("bindgen can not handle unit or tuple structs ({})", name),
-                });
-            }
-
-            let item = transform_struct(variants.fields()).ok_or_else(|| Error {
+            let item = transform_struct(item.fields).ok_or_else(|| Error {
                 level: Level::Error,
                 span: Some(item.span),
-                message: format!(
-                    "bindgen can not handle struct {}",
-                    pprust::item_to_string(item)
-                ),
+                message: format!("bindgen can not handle struct {}", item.ident.to_string()),
             })?;
             let name = name.to_string();
             self.structs.push(Snippet { docs, name, item });
@@ -446,11 +431,11 @@ impl Lang for LangCSharp {
 
     fn parse_fn(
         &mut self,
-        item: &ast::Item,
+        item: &syn::ItemFn,
         _module: &[String],
         _outputs: &mut Outputs,
     ) -> Result<(), Error> {
-        let name = item.ident.name.as_str();
+        let name = item.ident.to_string().as_str();
         if self.is_ignored(&name) {
             return Ok(());
         }
@@ -463,20 +448,17 @@ impl Lang for LangCSharp {
             return Ok(());
         }
 
-        if let ast::ItemKind::Fn(ref fn_decl, unsafety, ref constness, abi, ref generics, _) =
-            item.node
-        {
-            if !common::is_extern(abi) {
+        if let syn::Item::Fn(ref item) = item {
+            if !common::is_extern(item.abi.unwrap()) {
                 return Ok(());
             }
+            //TODO: There are no generics in syn's ItemFn
+            //            if item {
+            //                return Err(unsupported_generics_error(syn::Item::from(item), "extern functions"));
+            //            }
 
-            if generics.is_parameterized() {
-                return Err(unsupported_generics_error(item, "extern functions"));
-            }
-
-            let function = transform_function(fn_decl).ok_or_else(|| {
-                let string =
-                    pprust::fun_to_string(fn_decl, unsafety, constness.node, item.ident, generics);
+            let function = transform_function(*item.decl).ok_or_else(|| {
+                let string = item.ident.to_string();
 
                 Error {
                     level: Level::Error,
@@ -790,7 +772,7 @@ fn callback_wrapper_name(callback: &Function) -> String {
     writer.into_inner()
 }
 
-fn unsupported_generics_error(item: &ast::Item, name: &str) -> Error {
+fn unsupported_generics_error(item: &syn::Item, name: &str) -> Error {
     Error {
         level: Level::Error,
         span: Some(item.span),
