@@ -38,10 +38,10 @@ pub fn imported_mods(module: &ast::Mod) -> Vec<Vec<String>> {
 /// Iterates through all items in the module and dispatches to correct methods, then pulls all
 /// the results together into a header.
 pub fn parse_mod<L: Lang>(
-    _lang: &mut L,
+    lang: &mut L,
     module: &syn::ItemMod,
-    _mod_path: &[String],
-    _outputs: &mut Outputs,
+    mod_path: &[String],
+    outputs: &mut Outputs,
 ) -> Result<(), Vec<Error>> {
     let mut errors = vec![];
 
@@ -103,27 +103,32 @@ pub fn parse_mod<L: Lang>(
         let res = match item {
             syn::Item::Mod(ref item) => {
                 println!("Mod found inside a Mod");
-                parse_mod(_lang, item, _mod_path, _outputs);
+                parse_mod(lang, item, mod_path, outputs);
                 Ok(())
             }
-            syn::Item::Const(..) => {
-                println!("Const found inside mod"); /*lang.parse_const(lang,_item,mod_path,outputs)*/
+            syn::Item::Const(ref item) => {
+                println!("Const found inside mod");
+                lang.parse_const(item,mod_path,outputs);
                 Ok(())
             }
-            syn::Item::Type(..) => {
-                println!("Type found inside mod"); /*lang.parse_ty(lang,_item,mod_path,outputs)*/
+            syn::Item::Type(ref item) => {
+                println!("Type found inside mod");
+                lang.parse_ty(item,mod_path,outputs);
                 Ok(())
             }
-            syn::Item::Enum(..) => {
-                println!("Enum found inside mod"); /*lang.parse_enum(lang,_item,mod_path,outputs)*/
+            syn::Item::Enum(ref item) => {
+                println!("Enum found inside mod");
+                lang.parse_enum(item,mod_path,outputs);
                 Ok(())
             }
-            syn::Item::Fn(..) => {
-                println!("Fn found inside mod"); /*lang.parse_fn(lang,_item,mod_path,outputs)*/
+            syn::Item::Fn(ref item) => {
+                println!("Fn found inside mod");
+                lang.parse_fn(item,mod_path,outputs);
                 Ok(())
             }
-            syn::Item::Struct(..) => {
-                println!("Struct found inside mod"); /*lang.parse_struct(lang,_item,mod_path,outputs)*/
+            syn::Item::Struct(ref item) => {
+                println!("Struct found inside mod");
+                lang.parse_struct(&item,mod_path,outputs);
                 Ok(())
             }
             _ => Ok(()),

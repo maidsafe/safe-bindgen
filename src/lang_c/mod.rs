@@ -14,6 +14,9 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path;
 use Error;
 use Level;
+use std::ops::Deref;
+use syn::export::ToTokens;
+use syn::spanned::Spanned;
 
 pub struct LangC {
     lib_name: String,
@@ -80,7 +83,7 @@ impl LangC {
     /// Transform a Rust FFI function into a C function decl
     pub fn transform_native_fn(
         &mut self,
-        fn_decl: &syn::ItemFn, //
+        fn_decl: &syn::ItemFn,
         docs: &str,
         name: &str,
         module: &[String],
@@ -90,16 +93,24 @@ impl LangC {
         // entire declaration is wrapped by the function pointer type) by first creating the name
         // and parameters, then passing that whole thing to `rust_to_c`.
 
-        let mut args = Vec::new();
-
+        let mut args = vec![];
+        let len = &fn_decl.decl.inputs.len();
+        println!("{}", len);
         // Arguments
-        for arg in fn_decl.decl.inputs.iter() {
-            let arg_name = arg.pat.ident.to_string();
-            let c_ty = rust_to_c(&arg.ty, &arg_name)?;
-            self.add_dependencies(module, &c_ty.1)?;
-            args.push(c_ty);
+        for arg in &fn_decl.decl.inputs {
+            if let syn::FnArg::Captured(ref argcap) = arg {
+                if let syn::Pat::Ident(ref pat) = argcap.pat {
+                    let mut arg_name = pat.ident.to_owned().to_string();
+                    let mut c_ty = rust_to_c(&argcap.ty, arg_name.as_str())?;
+                    self.add_dependencies(module, &c_ty.1).unwrap();
+                    println!("{}", arg_name);
+                    args.push(c_ty);
+                }
+                println!("HELP1");
+            }
+            println!("HELP2");
         }
-
+        println!("HELP3");
         let buf = format!(
             "{}({})",
             name,
@@ -115,24 +126,27 @@ impl LangC {
 
         // Generate return type
         let output_type = &fn_decl.decl.output;
-        let full_declaration = match *output_type {
+        let mut full_declaration = String::new();
+        full_declaration.to_owned();
+        match output_type {
             syn::ReturnType::Type(_, ref ty) => {
-                match ty.as_ref() {
+                match ty.deref() {
                     syn::Type::Never(..) => {
                         return Err(Error {
                             level: Level::Error,
-                            span: Some(ty.span), //there is no span for types in syn, hence None
+                            span: None, //NONE FOR NOW
                             message: "panics across a C boundary are naughty!".into(),
                         });
                     }
                     _ => {
                         let c_ty = rust_to_c(&*ty, &buf)?;
                         self.add_dependencies(module, &c_ty.1)?;
-                        format!("{}", c_ty)
+                        let x = format!("{}", c_ty);
+                        full_declaration.push_str(&x[..])
                     }
                 }
             }
-            syn::ReturnType::Default => format!("void {}", buf),
+            syn::ReturnType::Default => full_declaration.push_str(&format!("void {}", buf)[..]),
         };
 
         let mut output = String::new();
@@ -172,22 +186,11 @@ impl Lang for LangC {
         buffer.push_str(&docs);
 
         let name = item.ident.to_string();
-        let new_type = match item {
-            syn::Item::Type(ref item) => {
-                // Can not yet convert generics.
-                if item.generics.lt_token.is_some() {
-                    return Ok(());
-                }
-                rust_to_c(&*item.ty.deref(), &name)?
-            }
-            _ => {
-                return Err(Error {
-                    level: Level::Bug,
-                    span: Some(item.span),
-                    message: "`parse_ty` called on wrong `Item_`".into(),
-                });
-            }
-        };
+        // Can not yet convert generics.
+        if !item.generics.params.is_empty() {
+            return Ok(());
+        }
+        let new_type = rust_to_c(item.ty.deref(), &name)?;
 
         buffer.push_str(&format!("typedef {};\n\n", new_type));
         self.append_to_header(buffer, module, outputs)?;
@@ -223,39 +226,31 @@ impl Lang for LangC {
 
         let name = item.ident.to_string();
         buffer.push_str(&format!("typedef enum {} {{\n", name));
-        if let syn::Item::Enum(ref item) = item {
-            if item.generics.lt_token.is_some() {
+        if !item.generics.params.is_empty() {
+            return Err(Error {
+                level: Level::Error,
+                span: None, //NONE FOR NOW
+                message: "bindgen can not handle parameterized `#[repr(C)]` enums".into(),
+            });
+        }
+        for var in item.variants.to_owned() {
+            if syn::Fields::Unit == var.fields {
                 return Err(Error {
                     level: Level::Error,
-                    span: Some(item.span),
-                    message: "bindgen can not handle parameterized `#[repr(C)]` enums".into(),
+                    span: None, //NONE FOR NOW
+                    message: "bindgen can not handle `#[repr(C)]` enums with non-unit variants"
+                        .into(),
                 });
             }
-            for var in item.variants {
-                if var == syn::Fields::Unit {
-                    return Err(Error {
-                        level: Level::Error,
-                        span: Some(var.span),
-                        message: "bindgen can not handle `#[repr(C)]` enums with non-unit variants"
-                            .into(),
-                    });
-                }
 
-                let (_, docs) = parse_attr(
-                    &var.node.attrs,
-                    |_| true,
-                    |attr| retrieve_docstring(attr, "\t"),
-                );
-                buffer.push_str(&docs);
-                //TODO: Must be verified
-                buffer.push_str(&format!("\t{}_{},\n", name, var.ident.to_string()));
-            }
-        } else {
-            return Err(Error {
-                level: Level::Bug,
-                span: Some(item.span),
-                message: "`parse_enum` called on wrong `Item_`".into(),
-            });
+            let (_, docs) = parse_attr(
+                &var.attrs,
+                |_| true,
+                |attr| retrieve_docstring(attr, "\t"),
+            );
+            buffer.push_str(&docs);
+            //TODO: Must be verified
+            buffer.push_str(&format!("\t{}_{},\n", name, var.ident.to_string()));
         }
 
         buffer.push_str(&format!("}} {};\n\n", name));
@@ -279,6 +274,7 @@ impl Lang for LangC {
         let (repr_c, docs) = parse_attr(&item.attrs[..], check_repr_c, |attr| {
             retrieve_docstring(attr, "")
         });
+
         // If it's not #[repr(C)] then it can't be called from C.
         if !repr_c {
             return Ok(());
@@ -290,40 +286,32 @@ impl Lang for LangC {
         let name = item.ident.to_string();
         buffer.push_str(&format!("typedef struct {}", name));
 
-        if let syn::Item::Struct(ref item1) = item {
-            if item1.generics.lt_token.is_some() {
-                return Err(Error {
-                    level: Level::Error,
-                    span: Some(item1.span),
-                    message: "bindgen can not handle parameterized `#[repr(C)]` structs".into(),
-                });
-            }
-            buffer.push_str(" {\n");
-            for field in item1.fields.iter() {
-                let (_, docs) = parse_attr(
-                    &field.attrs[..],
-                    |_| true,
-                    |attr| retrieve_docstring(attr, "\t"),
-                );
-                buffer.push_str(&docs);
-
-                let name = match field.ident {
-                    Some(name) => name.to_string(),
-                    None => unreachable!("a tuple struct snuck through"),
-                };
-
-                let ty = rust_to_c(&*field.ty, &name)?;
-                self.add_dependencies(module, &ty.1)?;
-                buffer.push_str(&format!("\t{};\n", ty));
-            }
-            buffer.push_str("}");
-        } else {
+        if !item.generics.params.is_empty() {
             return Err(Error {
-                level: Level::Bug,
-                span: Some(item.span),
-                message: "`parse_struct` called on wrong `Item_`".into(),
+                level: Level::Error,
+                span: None, //NONE FOR NOW
+                message: "bindgen can not handle parameterized `#[repr(C)]` structs".into(),
             });
         }
+        buffer.push_str(" {\n");
+        for field in item.fields.iter() {
+            let (_, docs) = parse_attr(
+                &field.attrs[..],
+                |_| true,
+                |attr| retrieve_docstring(attr, "\t"),
+            );
+            buffer.push_str(&docs);
+
+            let name = match field.ident.to_owned() {
+                Some(name) => name.to_string(),
+                None => unreachable!("a tuple struct snuck through"),
+            };
+
+            let ty = rust_to_c( &field.ty, &name)?;
+            self.add_dependencies(module, &ty.1)?;
+            buffer.push_str(&format!("\t{};\n", ty));
+        }
+        buffer.push_str("}");
 
         buffer.push_str(&format!(" {};\n\n", name));
         self.append_to_header(buffer, module, outputs)?;
@@ -346,40 +334,37 @@ impl Lang for LangC {
         module: &[String],
         outputs: &mut Outputs,
     ) -> Result<(), Error> {
+
         let (no_mangle, docs) = parse_attr(&item.attrs[..], check_no_mangle, |attr| {
             retrieve_docstring(attr, "")
         });
+        println!("{}",docs);
+
         // If it's not #[no_mangle] then it can't be called from C.
-        if !no_mangle {
+        if no_mangle {
             return Ok(());
         }
 
-        let name = item.ident.to_string();
-        if let syn::Item::Fn(ref item) = item {
-            match *item.abi.unwrap().name.unwrap().value().as_str() {
-                // If it doesn't have a C ABI it can't be called from C.
-                &"C" | &"Cdecl" | &"Stdcall" | &"Fastcall" | &"System" => {}
-                _ => return Ok(()),
-            }
+        let name = item.ident.to_owned().to_string();
+        println!("{:?}",name);
 
-            if item.decl.generics.lt_token.is_some() {
-                return Err(Error {
-                    level: Level::Error,
-                    span: Some(item.span),
-                    message: "bindgen can not handle parameterized extern functions".into(),
-                });
-            }
-
-            self.transform_native_fn(&*item, &docs, &format!("{}", name), module, outputs)?;
-
-            Ok(())
-        } else {
-            Err(Error {
-                level: Level::Bug,
-                span: Some(item.span),
-                message: "`parse_fn` called on wrong `Item_`".into(),
-            })
+        match item.abi.to_owned().unwrap().name.unwrap().value().as_str() {
+            // If it doesn't have a C ABI it can't be called from C.
+            "C" | "Cdecl" | "Stdcall" | "Fastcall" | "System" => {}
+            _ => return Ok(()),
         }
+
+        if !item.decl.generics.params.is_empty() {
+            return Err(Error {
+                level: Level::Error,
+                span: None, //NONE FOR NOW
+                message: "bindgen can not handle parameterized extern functions".into(),
+            });
+        }
+
+        self.transform_native_fn(&*item, &docs, &format!("{}", name), module, outputs)?;
+
+        Ok(())
     }
 
     fn finalise_output(&mut self, outputs: &mut Outputs) -> Result<(), Error> {
@@ -462,19 +447,19 @@ fn anon_rust_to_c(ty: &syn::Type) -> Result<CType, Error> {
         // Fixed-length arrays, converted into pointers.
         syn::Type::Array(..) => Ok(CType::Ptr(Box::new(anon_rust_to_c(ty)?), CPtrType::Const)),
         // Standard pointers.
-        syn::Type::Ptr(ref ptr) => ptr_to_c(ptr, ty),
+        syn::Type::Ptr(ref ptr) => ptr_to_c(ptr),
         // Plain old types.
         syn::Type::Path(ref path) => path_to_c(path),
         // Possibly void, likely not.
         _ => {
-            let new_type = ty.to_string();
+            let new_type = ty.into_token_stream().to_string();
             if new_type == "()" {
                 // Ok("void".into())
                 Ok(CType::Void)
             } else {
                 Err(Error {
                     level: Level::Error,
-                    span: Some(ty.span),
+                    span: None, //NONE FOR NOW
                     message: format!("bindgen can not handle the type `{}`", new_type),
                 })
             }
@@ -483,16 +468,22 @@ fn anon_rust_to_c(ty: &syn::Type) -> Result<CType, Error> {
 }
 
 /// Turn a Rust pointer (*mut or *const) into the correct C form.
-fn ptr_to_c(typeptr: &syn::TypePtr, ty: &syn::Type) -> Result<CType, Error> {
-    let new_type = anon_rust_to_c(ty)?;
-    let mut const_type = match typeptr.mutability {
-        // *const T
-        Some(..) => CPtrType::Mutable,
-        _ => match typeptr.const_token {
-            Some(..) => CPtrType::Const,
-            _ => None,
-        },
+fn ptr_to_c(typeptr: &syn::TypePtr) -> Result<CType, Error> {
+    let new_type = anon_rust_to_c(&*typeptr.elem)?;
+    let mut const_type : CPtrType;
+    if typeptr.mutability.is_some() {
+        const_type = CPtrType::Mutable;
+    } else {
+        const_type = CPtrType::Const
     };
+//    let mut const_type = match typeptr.mutability.unwrap() {
+//        // *const T
+//        Some(..) => CPtrType::Mutable,
+//        _ => match typeptr.const_token.expect("") {
+//            Some(..) => CPtrType::Const,
+//            None => ,
+//        },
+//    };
     Ok(CType::Ptr(Box::new(new_type), const_type))
 }
 
@@ -512,10 +503,10 @@ fn ptr_to_c(typeptr: &syn::TypePtr, ty: &syn::Type) -> Result<CType, Error> {
 ///
 /// where `inner` could either be a name or the rest of a function declaration.
 fn fn_ptr_to_c(fn_ty: &syn::TypeBareFn, inner: &str) -> Result<CType, Error> {
-    if !fn_ty.lifetimes.is_empty() {
+    if !fn_ty.lifetimes.to_owned().is_some() {
         return Err(Error {
             level: Level::Error,
-            span: None, //there is no span for types in syn, hence none
+            span: None, //NONE FOR NOW
             message: "bindgen can not handle lifetimes".into(),
         });
     }
@@ -525,9 +516,9 @@ fn fn_ptr_to_c(fn_ty: &syn::TypeBareFn, inner: &str) -> Result<CType, Error> {
         vec![]
     } else {
         let mut args = vec![];
-        for arg in &fn_ty.inputs {
-            let arg_name1 = arg.name.to_string();
-            let arg_type = rust_to_c(&*arg.ty, &arg_name1)?;
+        for arg in fn_ty.inputs.to_owned() {
+            let mut arg_name1 = &arg.name.to_owned().unwrap().0.into_token_stream().to_string();
+            let arg_type = rust_to_c(&arg.ty, &arg_name1.as_str())?;
             args.push(arg_type);
         }
         args
@@ -539,7 +530,7 @@ fn fn_ptr_to_c(fn_ty: &syn::TypeBareFn, inner: &str) -> Result<CType, Error> {
                 syn::Type::Never(..) => {
                     return Err(Error {
                         level: Level::Error,
-                        span: Some(ty.span), //there is no span for types in syn, hence None
+                        span: None, //NONE FOR NOW
                         message: "panics across a C boundary are naughty!".into(),
                     });
                 }
@@ -564,7 +555,7 @@ fn path_to_c(path: &syn::TypePath) -> Result<CType, Error> {
     if path.path.segments.is_empty() {
         return Err(Error {
             level: Level::Bug,
-            span: None, //there is no span for path in syn, hence none
+            span: None, //NONE FOR NOW
             message: "invalid type".into(),
         });
     }
@@ -573,23 +564,24 @@ fn path_to_c(path: &syn::TypePath) -> Result<CType, Error> {
     if path.path.segments.len() > 1 {
         let ty = path.path.segments.last().unwrap().into_value();
         //.expect("already checked that there were at least two elements");            .split_last()
-        let ty: &str = &ty.to_string();
+        let ty = ty.ident.to_string();
         //        path
         //            .path
         //            .segments
         //            .last().clone()
         //            .expect("poping last element for module failed");
-        let mut module = Vec::new();
-        for segment in &path.path.segments.iter() {
-            module.push(segment);
+        let mut module = String::new();
+        module.to_owned();
+        for segment in path.path.segments.iter() {
+            module.push_str(segment.ident.to_string().as_str());
         }
-        let module = module.join("::");
-        match &*module.into_boxed_slice() {
+        //let module = module.join("::");
+        match &*module.into_boxed_str() {
             "libc" => Ok(libc_ty_to_c(ty)),
             "std::os::raw" => Ok(osraw_ty_to_c(ty)),
             _ => Err(Error {
                 level: Level::Error,
-                span: Some(path.span),
+                span: None, //NONE FOR NOW
                 message: "can not handle types in other modules (except `libc` and `std::os::raw`)"
                     .into(),
             }),
@@ -602,8 +594,8 @@ fn path_to_c(path: &syn::TypePath) -> Result<CType, Error> {
 /// Convert a Rust type from `libc` into a C type.
 ///
 /// Most map straight over but some have to be converted.
-fn libc_ty_to_c(ty: &str) -> CType {
-    match ty {
+fn libc_ty_to_c(ty: String) -> CType {
+    match ty.as_str() {
         "c_void" => CType::Void,
         "c_float" => CType::Native("float"),
         "c_double" => CType::Native("double"),
@@ -626,8 +618,8 @@ fn libc_ty_to_c(ty: &str) -> CType {
 /// Convert a Rust type from `std::os::raw` into a C type.
 ///
 /// These mostly mirror the libc crate.
-fn osraw_ty_to_c(ty: &str) -> CType {
-    match ty {
+fn osraw_ty_to_c(ty: String) -> CType {
+    match ty.as_str() {
         "c_void" => CType::Void,
         "c_char" => CType::Native("char"),
         "c_double" => CType::Native("double"),
@@ -667,7 +659,7 @@ fn rust_ty_to_c(ty: &str) -> CType {
         "u64" => CType::Native("uint64_t"),
         "usize" => CType::Native("uintptr_t"),
         "bool" => CType::Native("bool"),
-        ty => libc_ty_to_c(ty),
+        ty => libc_ty_to_c(ty.to_string()),
     }
 }
 

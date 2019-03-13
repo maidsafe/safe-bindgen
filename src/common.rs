@@ -1,8 +1,10 @@
 //! Functions common for all target languages.
 
 use std::collections::hash_map::{Entry, HashMap};
-use syntax::ast;
-use syntax::print::pprust;
+use syn::export::ToTokens;
+use std::ops::Deref;
+use std::borrow::BorrowMut;
+use std::borrow::Borrow;
 use Error;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -93,38 +95,35 @@ pub fn check_no_mangle(attr: &syn::Attribute) -> bool {
 }
 
 /// Check the function argument is `user_data: *mut c_void`
-pub fn is_user_data_arg(arg: &ast::Arg) -> bool {
-    pprust::pat_to_string(&*arg.pat) == "user_data"
-        && pprust::ty_to_string(&*arg.ty) == "*mut c_void"
+pub fn is_user_data_arg(arg: &syn::ArgCaptured) -> bool {
+    arg.to_owned().pat.into_token_stream().to_string().as_str() == "*mut c_void"
 }
 
 /// Check the function argument is `result: *const FfiResult`
-pub fn is_result_arg(arg: &ast::Arg) -> bool {
-    pprust::pat_to_string(&*arg.pat) == "result"
-        && pprust::ty_to_string(&*arg.ty) == "*const FfiResult"
+pub fn is_result_arg(arg: &syn::ArgCaptured) -> bool {
+    arg.to_owned().pat.into_token_stream().to_string().as_str() == "result"
+        && arg.to_owned().ty.into_token_stream().to_string().as_str() == "*const FfiResult"
 }
 
 /// Check the function argument is a length argument for a *const u8 pointer
-pub fn is_ptr_len_arg(ty: &ast::Ty, arg_name: &str) -> bool {
-    pprust::ty_to_string(ty) == "usize"
+pub fn is_ptr_len_arg(ty: &syn::Type, arg_name: &str) -> bool {
+    &*ty.to_owned().into_token_stream().to_string().as_str() == "usize"
         && (arg_name.ends_with("_len") || arg_name == "len" || arg_name == "size")
 }
 
 /// Detect array ptrs and skip the length args - e.g. for a case of
 /// `ptr: *const u8, ptr_len: usize` we're going to skip the `len` part.
-pub fn is_array_arg(arg: &ast::Arg, next_arg: Option<&ast::Arg>) -> bool {
-    if let ast::TyKind::Ptr(..) = arg.ty.node {
-        !is_result_arg(arg)
-            && next_arg
-                .map(|arg| is_ptr_len_arg(&*arg.ty, &pprust::pat_to_string(&*arg.pat)))
+pub fn is_array_arg(arg: &syn::ArgCaptured, next_arg: Option<&syn::ArgCaptured>) -> bool {
+        if let syn::Type::Ptr(..) = arg.ty {
+                !is_result_arg(&arg)
+                && next_arg
+                .map(|arg| is_ptr_len_arg(&arg.ty, &*arg.to_owned().pat.into_token_stream().to_string()))
                 .unwrap_or(false)
-    } else {
-        false
-    }
+        } else {
+            false
+        }
 }
 
-// TODO: Maybe it would be wise to use syntax::attr here.
-/// Loop through a list of attributes.
 ///
 /// Check that at least one attribute matches some criteria (usually `#[repr(C)]` or `#[no_mangle]`)
 /// and optionally retrieve a String from it (usually a docstring).
@@ -151,8 +150,8 @@ where
 
 /// Check the attribute is #[repr(C)].
 pub fn check_repr_c(attr: &syn::Attribute) -> bool {
-    match attr.parse_meta() {
-        syn::Meta::List(ref word) if attr.path == "repr" => {
+    match attr.parse_meta().unwrap() {
+        syn::Meta::List(ref word) if attr.to_owned().path.into_token_stream().to_string().as_str() == "repr" => {
             match word.nested.first() {
                 Some(word) => {
                     match word.into_value() {
@@ -170,11 +169,12 @@ pub fn check_repr_c(attr: &syn::Attribute) -> bool {
 
 /// If the attribute is  a docstring, indent it the required amount and return it.
 pub fn retrieve_docstring(attr: &syn::Attribute, prepend: &str) -> Option<String> {
-    match attr.parse_meta() {
-        syn::Meta::NameValue(ref val) if attr.path == "doc" => {
+    match attr.parse_meta().unwrap() {
+        syn::Meta::NameValue(ref val) if attr.to_owned().path.into_token_stream().to_string().as_str() == "doc" => {
             match val.lit {
                 // Docstring attributes omit the trailing newline.
-                syn::Lit::Str(ref docs) => Some(format!("{}{}\n", prepend, docs)),
+                syn::Lit::Str(ref docs) =>
+                    Some(format!("{}{}\n", prepend, docs.value().as_str())),
                 _ => unreachable!("docs must be literal strings"),
             }
         }
@@ -185,9 +185,9 @@ pub fn retrieve_docstring(attr: &syn::Attribute, prepend: &str) -> Option<String
 /// Returns whether the calling convention of the function is compatible with
 /// C (i.e. `extern "C"`).
 pub fn is_extern(abi: syn::Abi) -> bool {
-    match *abi.name.unwrap().value().as_str() {
+    match abi.name.unwrap().value().as_str() {
         // If it doesn't have a C ABI it can't be called from C.
-        &"C" | &"Cdecl" | &"Stdcall" | &"Fastcall" | &"System" => true,
+        "C" | "Cdecl" | "Stdcall" | "Fastcall" | "System" => true,
         _ => false,
     }
 }

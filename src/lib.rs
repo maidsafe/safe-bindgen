@@ -51,6 +51,7 @@
 #![cfg_attr(not(feature = "with-syntex"), feature(rustc_private))]
 #![recursion_limit = "128"]
 
+extern crate inflector;
 #[cfg(not(feature = "with-syntex"))]
 extern crate rustc_errors as errors;
 #[cfg(not(feature = "with-syntex"))]
@@ -59,9 +60,12 @@ extern crate syntax;
 extern crate syntex_errors as errors;
 #[cfg(feature = "with-syntex")]
 extern crate syntex_syntax as syntax;
-use toml;
+extern crate toml;
 #[macro_use]
 extern crate quote;
+extern crate jni;
+extern crate petgraph;
+extern crate rustfmt;
 
 extern crate syn;
 
@@ -75,14 +79,12 @@ extern crate indoc;
 #[macro_use]
 extern crate unwrap;
 
-pub use crate::common::FilterMode;
-use crate::common::{Lang, Outputs};
-pub use crate::csharp::LangCSharp;
-pub use crate::errors::Level;
-pub use crate::java::LangJava;
-pub use crate::lang_c::LangC;
-use crate::syntax::codemap::{FilePathMapping, Span};
-use jni;
+pub use common::FilterMode;
+use common::{Lang, Outputs};
+//pub use csharp::LangCSharp;
+pub use errors::Level;
+//pub use java::LangJava;
+pub use lang_c::LangC;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::fs;
@@ -90,17 +92,19 @@ use std::fs::File;
 use std::io::Error as IoError;
 use std::io::{Read, Write};
 use std::path::{self, Component, Path, PathBuf};
+use syntax::codemap::{FilePathMapping,Span};
+use syn::export::Span as synspan;
 
 #[cfg(test)]
 #[macro_use]
 mod test_utils;
 mod common;
-mod csharp;
-mod java;
+//mod csharp;
+//mod java;
 mod lang_c;
 mod output;
 mod parse;
-mod struct_field;
+//mod struct_field;
 
 /// Describes an error encountered by the compiler.
 ///
@@ -326,38 +330,43 @@ impl Bindgen {
         path: &PathBuf,
     ) -> Result<(), Vec<Error>> {
         let _base_path = unwrap!(path.parent());
-        let mod_path = unwrap!(path.to_str()).to_string();
+        let mod_path = path.to_str().unwrap().to_string();
 
         // Parse the top level mod.
-
+        let module = convert_lib_path_to_module(&PathBuf::from(mod_path.clone()));
         // Creates AST for the entire file
         let mut file = unwrap!(File::open(path));
         let mut content = String::new();
         unwrap!(file.read_to_string(&mut content));
-        let _ast = unwrap!(syn::parse_file(&content));
+        let ast = unwrap!(syn::parse_file(&content));
 
         let module = convert_lib_path_to_module(&PathBuf::from(mod_path.clone()));
-
-        for _item in _ast.items {
-            match &_item {
+        println!("{:?}!!!!!!!!!!!!!!",&module);
+        for item in ast.items {
+            match &item {
                 syn::Item::Mod(ref _item) => {
                     println!("Mod found");
-                    parse::parse_mod(lang, _item, &module, outputs);
+                    parse::parse_mod(lang, _item, &[path.to_str().unwrap().to_string()], outputs);
                 }
-                syn::Item::Const(..) => {
-                    println!("Const found"); /*lang.parse_const(lang,_item,mod_path,outputs)*/
+                syn::Item::Const(ref item) => {
+                    println!("Const found");
+                    lang.parse_const(item,&module[..],outputs);
                 }
-                syn::Item::Type(..) => {
-                    println!("Type found"); /*lang.parse_ty(lang,_item,mod_path,outputs)*/
+                syn::Item::Type(ref item) => {
+                    println!("Type found");
+                    lang.parse_ty(item,&module[..],outputs);
                 }
-                syn::Item::Enum(..) => {
-                    println!("Enum found"); /*lang.parse_enum(lang,_item,mod_path,outputs)*/
+                syn::Item::Enum(ref item) => {
+                    println!("Enum found");
+                    lang.parse_enum(item,&module[..],outputs);
                 }
-                syn::Item::Fn(..) => {
-                    println!("Fn found"); /*lang.parse_fn(lang,_item,mod_path,outputs)*/
+                syn::Item::Fn(ref item) => {
+                    println!("Fn found");
+                    lang.parse_fn(item,&[path.to_str().unwrap().to_string()],outputs);
                 }
-                syn::Item::Struct(..) => {
-                    println!("Struct found"); /*lang.parse_struct(lang,_item,mod_path,outputs)*/
+                syn::Item::Struct(ref item) => {
+                    println!("Struct found");
+                    lang.parse_struct(item,&module[..],outputs);
                 }
                 _ => {
                     println!("Item not of our interest found");
@@ -391,8 +400,8 @@ impl Bindgen {
 
     fn compile_from_source<L: Lang>(
         &self,
-        _lang: &mut L,
-        _outputs: &mut Outputs,
+        lang: &mut L,
+        outputs: &mut Outputs,
         file_name: String,
         source: String,
     ) -> Result<(), Vec<Error>> {
@@ -400,40 +409,37 @@ impl Bindgen {
 
         let _ast: syn::File = unwrap!(syn::parse_str(&source));
 
-        for _item in _ast.items {
-            match &_item {
-                syn::Item::Mod(ref _item) => {
+        for item in _ast.items {
+            match &item {
+                syn::Item::Mod(ref item) => {
                     println!("Mod found");
-                    parse::parse_mod(_lang, _item, &module, _outputs);
+                    parse::parse_mod(lang, item, &module[..], outputs);
                 }
-                syn::Item::Const(..) => {
-                    println!("Const found"); /*lang.parse_const(lang,_item,mod_path,outputs)*/
+                syn::Item::Const(ref item) => {
+                    println!("Const found");
+                    lang.parse_const(item,&module[..],outputs);
                 }
-                syn::Item::Type(..) => {
-                    println!("Type found"); /*lang.parse_ty(lang,_item,mod_path,outputs)*/
+                syn::Item::Type(ref item) => {
+                    println!("Type found");
+                    lang.parse_ty(item,&module[..],outputs);
                 }
-                syn::Item::Enum(..) => {
-                    println!("Enum found"); /*lang.parse_enum(lang,_item,mod_path,outputs)*/
+                syn::Item::Enum(ref item) => {
+                    println!("Enum found");
+                    lang.parse_enum(item,&module[..],outputs);
                 }
-                syn::Item::Fn(..) => {
-                    println!("Fn found"); /*lang.parse_fn(lang,_item,mod_path,outputs)*/
+                syn::Item::Fn(ref item) => {
+                    println!("Fn found");
+                    lang.parse_fn(item,&module[..],outputs);
                 }
-                syn::Item::Struct(..) => {
-                    println!("Struct found"); /*lang.parse_struct(lang,_item,mod_path,outputs)*/
+                syn::Item::Struct(ref item) => {
+                    println!("Struct found");
+                    lang.parse_struct(item,&module[..],outputs);
                 }
                 _ => {
                     println!("Item not of our interest found");
                 }
             }
         }
-
-        //        let _krate = unwrap!(syntax::parse::parse_crate_from_source_str(
-        //            file_name,
-        //            source,
-        //            &self.session
-        //        ));
-        //
-        //        eprintln!("Parsing {} (from string)", module.join("::"));
 
         Ok(())
     }
