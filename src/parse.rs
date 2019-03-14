@@ -45,101 +45,102 @@ pub fn parse_mod<L: Lang>(
 ) -> Result<(), Vec<Error>> {
     let mut errors = vec![];
 
-    for item in module.clone().content.unwrap().1 {
-        // If it's not visible it can't be called from C.
-        match item {
-            syn::Item::Mod(ref item) => {
-                if let syn::Visibility::Inherited = item.vis {
-                    continue;
+    if module.to_owned().content.is_some() {
+        for item in module.to_owned().content.unwrap().1 {
+            // If it's not visible it can't be called from C.
+            match item {
+                syn::Item::Mod(ref item) => {
+                    if let syn::Visibility::Inherited = item.vis {
+                        continue;
+                    }
+                    if let syn::Visibility::Crate(_) = item.vis {
+                        continue;
+                    }
                 }
-                if let syn::Visibility::Crate(_) = item.vis {
-                    continue;
+                syn::Item::Const(ref item) => {
+                    if let syn::Visibility::Inherited = item.vis {
+                        continue;
+                    }
+                    if let syn::Visibility::Crate(_) = item.vis {
+                        continue;
+                    }
                 }
+                syn::Item::Type(ref item) => {
+                    if let syn::Visibility::Inherited = item.vis {
+                        continue;
+                    }
+                    if let syn::Visibility::Crate(_) = item.vis {
+                        continue;
+                    }
+                }
+                syn::Item::Enum(ref item) => {
+                    if let syn::Visibility::Inherited = item.vis {
+                        continue;
+                    }
+                    if let syn::Visibility::Crate(_) = item.vis {
+                        continue;
+                    }
+                }
+                syn::Item::Fn(ref item) => {
+                    if let syn::Visibility::Inherited = item.vis {
+                        continue;
+                    }
+                    if let syn::Visibility::Crate(_) = item.vis {
+                        continue;
+                    }
+                }
+                syn::Item::Struct(ref item) => {
+                    if let syn::Visibility::Inherited = item.vis {
+                        continue;
+                    }
+                    if let syn::Visibility::Crate(_) = item.vis {
+                        continue;
+                    }
+                }
+                _ => {}
             }
-            syn::Item::Const(ref item) => {
-                if let syn::Visibility::Inherited = item.vis {
-                    continue;
-                }
-                if let syn::Visibility::Crate(_) = item.vis {
-                    continue;
-                }
-            }
-            syn::Item::Type(ref item) => {
-                if let syn::Visibility::Inherited = item.vis {
-                    continue;
-                }
-                if let syn::Visibility::Crate(_) = item.vis {
-                    continue;
-                }
-            }
-            syn::Item::Enum(ref item) => {
-                if let syn::Visibility::Inherited = item.vis {
-                    continue;
-                }
-                if let syn::Visibility::Crate(_) = item.vis {
-                    continue;
-                }
-            }
-            syn::Item::Fn(ref item) => {
-                if let syn::Visibility::Inherited = item.vis {
-                    continue;
-                }
-                if let syn::Visibility::Crate(_) = item.vis {
-                    continue;
-                }
-            }
-            syn::Item::Struct(ref item) => {
-                if let syn::Visibility::Inherited = item.vis {
-                    continue;
-                }
-                if let syn::Visibility::Crate(_) = item.vis {
-                    continue;
-                }
-            }
-            _ => {}
-        }
 
-        // Dispatch to correct method.
-        let res = match item {
-            syn::Item::Mod(ref item) => {
-                println!("Mod found inside a Mod");
-                parse_mod(lang, item, mod_path, outputs);
-                Ok(())
-            }
-            syn::Item::Const(ref item) => {
-                println!("Const found inside mod");
-                lang.parse_const(item,mod_path,outputs);
-                Ok(())
-            }
-            syn::Item::Type(ref item) => {
-                println!("Type found inside mod");
-                lang.parse_ty(item,mod_path,outputs);
-                Ok(())
-            }
-            syn::Item::Enum(ref item) => {
-                println!("Enum found inside mod");
-                lang.parse_enum(item,mod_path,outputs);
-                Ok(())
-            }
-            syn::Item::Fn(ref item) => {
-                println!("Fn found inside mod");
-                lang.parse_fn(item,mod_path,outputs);
-                Ok(())
-            }
-            syn::Item::Struct(ref item) => {
-                println!("Struct found inside mod");
-                lang.parse_struct(&item,mod_path,outputs);
-                Ok(())
-            }
-            _ => Ok(()),
-        };
+            // Dispatch to correct method.
+            let res = match item {
+                syn::Item::Mod(ref item) => {
+                    println!("Mod found inside a Mod");
+                    parse_mod(lang, item, mod_path, outputs);
+                    Ok(())
+                }
+                syn::Item::Const(ref item) => {
+                    println!("Const found inside mod");
+                    lang.parse_const(item, mod_path, outputs);
+                    Ok(())
+                }
+                syn::Item::Type(ref item) => {
+                    println!("Type found inside mod");
+                    lang.parse_ty(item, mod_path, outputs);
+                    Ok(())
+                }
+                syn::Item::Enum(ref item) => {
+                    println!("Enum found inside mod");
+                    lang.parse_enum(item, mod_path, outputs);
+                    Ok(())
+                }
+                syn::Item::Fn(ref item) => {
+                    println!("Fn found inside mod");
+                    lang.parse_fn(item, mod_path, outputs);
+                    Ok(())
+                }
+                syn::Item::Struct(ref item) => {
+                    println!("Struct found inside mod");
+                    lang.parse_struct(&item, mod_path, outputs);
+                    Ok(())
+                }
+                _ => Ok(()),
+            };
 
-        // Display any non-fatal errors, fatal errors are handled at cause.
-        if let Err(error) = res {
-            errors.push(error)
+            // Display any non-fatal errors, fatal errors are handled at cause.
+            if let Err(error) = res {
+                errors.push(error)
+            }
         }
     }
-
     if errors.is_empty() {
         Ok(())
     } else {

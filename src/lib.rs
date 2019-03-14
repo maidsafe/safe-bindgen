@@ -340,37 +340,27 @@ impl Bindgen {
         unwrap!(file.read_to_string(&mut content));
         let ast = unwrap!(syn::parse_file(&content));
 
-        let module = convert_lib_path_to_module(&PathBuf::from(mod_path.clone()));
-        println!("{:?}!!!!!!!!!!!!!!",&module);
         for item in ast.items {
             match &item {
-                syn::Item::Mod(ref _item) => {
-                    println!("Mod found");
-                    parse::parse_mod(lang, _item, &[path.to_str().unwrap().to_string()], outputs);
+                syn::Item::Mod(ref item) => {
+                    parse::parse_mod(lang, item, &[path.to_str().unwrap().to_string()], outputs);
                 }
                 syn::Item::Const(ref item) => {
-                    println!("Const found");
-                    lang.parse_const(item,&module[..],outputs);
+                    lang.parse_const(item,&module,outputs);
                 }
                 syn::Item::Type(ref item) => {
-                    println!("Type found");
-                    lang.parse_ty(item,&module[..],outputs);
+                    lang.parse_ty(item,&module,outputs);
                 }
                 syn::Item::Enum(ref item) => {
-                    println!("Enum found");
-                    lang.parse_enum(item,&module[..],outputs);
+                    lang.parse_enum(item,&module,outputs);
                 }
                 syn::Item::Fn(ref item) => {
-                    println!("Fn found");
-                    lang.parse_fn(item,&[path.to_str().unwrap().to_string()],outputs);
+                    lang.parse_fn(item,&module,outputs);
                 }
                 syn::Item::Struct(ref item) => {
-                    println!("Struct found");
-                    lang.parse_struct(item,&module[..],outputs);
+                    lang.parse_struct(item,&module,outputs);
                 }
-                _ => {
-                    println!("Item not of our interest found");
-                }
+                _ => {}
             }
         }
         //let krate = unwrap!(syntax::parse::parse_crate_from_file(path, &self.session));
@@ -412,32 +402,24 @@ impl Bindgen {
         for item in _ast.items {
             match &item {
                 syn::Item::Mod(ref item) => {
-                    println!("Mod found");
                     parse::parse_mod(lang, item, &module[..], outputs);
                 }
                 syn::Item::Const(ref item) => {
-                    println!("Const found");
                     lang.parse_const(item,&module[..],outputs);
                 }
                 syn::Item::Type(ref item) => {
-                    println!("Type found");
                     lang.parse_ty(item,&module[..],outputs);
                 }
                 syn::Item::Enum(ref item) => {
-                    println!("Enum found");
                     lang.parse_enum(item,&module[..],outputs);
                 }
                 syn::Item::Fn(ref item) => {
-                    println!("Fn found");
                     lang.parse_fn(item,&module[..],outputs);
                 }
                 syn::Item::Struct(ref item) => {
-                    println!("Struct found");
                     lang.parse_struct(item,&module[..],outputs);
                 }
-                _ => {
-                    println!("Item not of our interest found");
-                }
+                _ => {}
             }
         }
 
@@ -468,6 +450,7 @@ impl Bindgen {
 
             if let Some(parent_dirs) = full_path.parent() {
                 fs::create_dir_all(parent_dirs)?;
+
             }
 
             let mut f = fs::File::create(full_path)?;
@@ -496,6 +479,7 @@ impl Bindgen {
     pub fn run_build<P: AsRef<Path>, L: Lang>(&mut self, lang: &mut L, output_dir: P) {
         let mut outputs = HashMap::new();
         self.compile_or_panic(lang, &mut outputs, true);
+
         self.write_outputs_or_panic(output_dir, &outputs);
     }
 

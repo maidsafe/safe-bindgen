@@ -95,22 +95,20 @@ impl LangC {
 
         let mut args = vec![];
         let len = &fn_decl.decl.inputs.len();
-        println!("{}", len);
+
         // Arguments
         for arg in &fn_decl.decl.inputs {
             if let syn::FnArg::Captured(ref argcap) = arg {
                 if let syn::Pat::Ident(ref pat) = argcap.pat {
                     let mut arg_name = pat.ident.to_owned().to_string();
-                    let mut c_ty = rust_to_c(&argcap.ty, arg_name.as_str())?;
+                    let mut c_ty = rust_to_c(&argcap.ty, arg_name.as_str()).unwrap();
                     self.add_dependencies(module, &c_ty.1).unwrap();
-                    println!("{}", arg_name);
+
                     args.push(c_ty);
                 }
-                println!("HELP1");
             }
-            println!("HELP2");
         }
-        println!("HELP3");
+
         let buf = format!(
             "{}({})",
             name,
@@ -150,7 +148,7 @@ impl LangC {
         };
 
         let mut output = String::new();
-        output.push_str(docs);
+        output.push_str(format!("/*\n{}*/\n",docs).as_str());
         output.push_str(&full_declaration);
         output.push_str(";\n\n");
 
@@ -338,7 +336,6 @@ impl Lang for LangC {
         let (no_mangle, docs) = parse_attr(&item.attrs[..], check_no_mangle, |attr| {
             retrieve_docstring(attr, "")
         });
-        println!("{}",docs);
 
         // If it's not #[no_mangle] then it can't be called from C.
         if no_mangle {
@@ -346,7 +343,6 @@ impl Lang for LangC {
         }
 
         let name = item.ident.to_owned().to_string();
-        println!("{:?}",name);
 
         match item.abi.to_owned().unwrap().name.unwrap().value().as_str() {
             // If it doesn't have a C ABI it can't be called from C.
@@ -503,7 +499,7 @@ fn ptr_to_c(typeptr: &syn::TypePtr) -> Result<CType, Error> {
 ///
 /// where `inner` could either be a name or the rest of a function declaration.
 fn fn_ptr_to_c(fn_ty: &syn::TypeBareFn, inner: &str) -> Result<CType, Error> {
-    if !fn_ty.lifetimes.to_owned().is_some() {
+    if fn_ty.lifetimes.to_owned().is_some() {
         return Err(Error {
             level: Level::Error,
             span: None, //NONE FOR NOW
