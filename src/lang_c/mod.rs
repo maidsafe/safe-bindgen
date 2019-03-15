@@ -148,7 +148,7 @@ impl LangC {
         };
 
         let mut output = String::new();
-        output.push_str(format!("/*\n{}*/\n", docs).as_str());
+        output.push_str(format!("{}", docs).as_str());
         output.push_str(&full_declaration);
         output.push_str(";\n\n");
 
