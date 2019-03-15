@@ -194,7 +194,7 @@ pub fn retrieve_docstring(attr: &syn::Attribute, prepend: &str) -> Option<String
         {
             match val.lit {
                 // Docstring attributes omit the trailing newline.
-                syn::Lit::Str(ref docs) => Some(format!("{}{}\n", prepend, docs.value().as_str())),
+                syn::Lit::Str(ref docs) => Some(format!("///{}{}", prepend, docs.value().as_str())),
                 _ => unreachable!("docs must be literal strings"),
             }
         }

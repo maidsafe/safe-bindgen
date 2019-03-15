@@ -180,7 +180,9 @@ impl Lang for LangC {
             |attr| retrieve_docstring(attr, ""),
         );
 
+
         let mut buffer = String::new();
+
         buffer.push_str(&docs);
 
         let name = item.ident.to_string();
@@ -188,7 +190,7 @@ impl Lang for LangC {
         if !item.generics.params.is_empty() {
             return Ok(());
         }
-        let new_type = rust_to_c(item.ty.deref(), &name)?;
+        let new_type = rust_to_c(item.ty.deref(), &name).unwrap();
 
         buffer.push_str(&format!("typedef {};\n\n", new_type));
         self.append_to_header(buffer, module, outputs)?;
@@ -275,7 +277,7 @@ impl Lang for LangC {
         }
 
         let mut buffer = String::new();
-        buffer.push_str(&docs);
+        buffer.push_str(format!("{}",&docs).as_str());
 
         let name = item.ident.to_string();
         buffer.push_str(&format!("typedef struct {}", name));
@@ -294,7 +296,7 @@ impl Lang for LangC {
                 |_| true,
                 |attr| retrieve_docstring(attr, "\t"),
             );
-            buffer.push_str(&docs);
+            buffer.push_str(format!("{}",&docs).as_str());
 
             let name = match field.ident.to_owned() {
                 Some(name) => name.to_string(),
@@ -437,14 +439,14 @@ fn anon_rust_to_c(ty: &syn::Type) -> Result<CType, Error> {
                     .into(),
         }),
         // Fixed-length arrays, converted into pointers.
-        syn::Type::Array(..) => Ok(CType::Ptr(Box::new(anon_rust_to_c(ty)?), CPtrType::Const)),
+        syn::Type::Array(ref ty1) => Ok(CType::Ptr(Box::new(anon_rust_to_c(&*ty1.elem)?), CPtrType::Const)),
         // Standard pointers.
         syn::Type::Ptr(ref ptr) => ptr_to_c(ptr),
         // Plain old types.
         syn::Type::Path(ref path) => path_to_c(path),
         // Possibly void, likely not.
         _ => {
-            let new_type = ty.into_token_stream().to_string();
+            let new_type = ty.to_owned().into_token_stream().to_string();
             if new_type == "()" {
                 // Ok("void".into())
                 Ok(CType::Void)
