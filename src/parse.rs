@@ -156,7 +156,7 @@ pub fn parse_mod<L: Lang>(
 ) -> Result<(), Vec<Error>> {
     let mut errors = vec![];
     if module.to_owned().content.is_some() {
-        for item in module.to_owned().content.unwrap().1 {
+        for item in unwrap!(module.to_owned().content).1 {
             // If it's not visible it can't be called from C.
             match item {
                 syn::Item::Mod(ref item) => {

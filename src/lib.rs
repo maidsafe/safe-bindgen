@@ -330,7 +330,7 @@ impl Bindgen {
         path: &PathBuf,
     ) -> Result<(), Vec<Error>> {
         let base_path = unwrap!(path.parent());
-        let mod_path = path.to_str().unwrap().to_string();
+        let mod_path = unwrap!(path.to_str()).to_string();
 
         // Parse the top level mod.
         let module = convert_lib_path_to_module(&PathBuf::from(mod_path.clone()));
@@ -358,7 +358,7 @@ impl Bindgen {
                             ));
                         }
 
-                        println!("Parsing {} ({:?})!!", module.join("::"), mod_path);
+                        println!("Parsing {} ({:?})", module.join("::"), mod_path);
 
                         let mut file = unwrap!(File::open(mod_path));
                         let mut content = String::new();

@@ -155,7 +155,7 @@ where
 
 /// Check the attribute is #[repr(C)].
 pub fn check_repr_c(attr: &syn::Attribute) -> bool {
-    match attr.parse_meta().unwrap() {
+    match unwrap!(attr.parse_meta()) {
         syn::Meta::List(ref word)
             if attr
                 .to_owned()
@@ -182,7 +182,7 @@ pub fn check_repr_c(attr: &syn::Attribute) -> bool {
 
 /// If the attribute is  a docstring, indent it the required amount and return it.
 pub fn retrieve_docstring(attr: &syn::Attribute, prepend: &str) -> Option<String> {
-    match attr.parse_meta().unwrap() {
+    match unwrap!(attr.parse_meta()) {
         syn::Meta::NameValue(ref val)
             if attr
                 .to_owned()
@@ -205,7 +205,7 @@ pub fn retrieve_docstring(attr: &syn::Attribute, prepend: &str) -> Option<String
 /// Returns whether the calling convention of the function is compatible with
 /// C (i.e. `extern "C"`).
 pub fn is_extern(abi: syn::Abi) -> bool {
-    match abi.name.unwrap().value().as_str() {
+    match unwrap!(abi.name).value().as_str() {
         // If it doesn't have a C ABI it can't be called from C.
         "C" | "Cdecl" | "Stdcall" | "Fastcall" | "System" => true,
         _ => false,

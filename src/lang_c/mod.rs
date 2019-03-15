@@ -101,8 +101,8 @@ impl LangC {
             if let syn::FnArg::Captured(ref argcap) = arg {
                 if let syn::Pat::Ident(ref pat) = argcap.pat {
                     let mut arg_name = pat.ident.to_owned().to_string();
-                    let mut c_ty = rust_to_c(&argcap.ty, arg_name.as_str()).unwrap();
-                    self.add_dependencies(module, &c_ty.1).unwrap();
+                    let mut c_ty = unwrap!(rust_to_c(&argcap.ty, arg_name.as_str()));
+                    unwrap!(self.add_dependencies(module, &c_ty.1));
 
                     args.push(c_ty);
                 }
@@ -190,7 +190,7 @@ impl Lang for LangC {
         if !item.generics.params.is_empty() {
             return Ok(());
         }
-        let new_type = rust_to_c(item.ty.deref(), &name).unwrap();
+        let new_type = unwrap!(rust_to_c(item.ty.deref(), &name));
 
         buffer.push_str(&format!("typedef {};\n\n", new_type));
         self.append_to_header(buffer, module, outputs)?;
@@ -341,7 +341,7 @@ impl Lang for LangC {
 
         let name = item.ident.to_owned().to_string();
         if item.abi.to_owned().is_some() {
-            match item.abi.to_owned().unwrap().name.unwrap().value().as_str() {
+            match unwrap!(unwrap!(item.abi.to_owned()).name).value().as_str() {
                 // If it doesn't have a C ABI it can't be called from C.
                 "C" | "Cdecl" | "Stdcall" | "Fastcall" | "System" => {}
                 _ => return Ok(()),
@@ -470,14 +470,7 @@ fn ptr_to_c(typeptr: &syn::TypePtr) -> Result<CType, Error> {
     } else {
         const_type = CPtrType::Const
     };
-    //    let mut const_type = match typeptr.mutability.unwrap() {
-    //        // *const T
-    //        Some(..) => CPtrType::Mutable,
-    //        _ => match typeptr.const_token.expect("") {
-    //            Some(..) => CPtrType::Const,
-    //            None => ,
-    //        },
-    //    };
+
     Ok(CType::Ptr(Box::new(new_type), const_type))
 }
 
@@ -562,7 +555,7 @@ fn path_to_c(path: &syn::TypePath) -> Result<CType, Error> {
 
     // Types in modules, `my_mod::MyType`.
     if path.path.segments.len() > 1 {
-        let ty = path.path.segments.last().unwrap().into_value();
+        let ty = unwrap!(path.path.segments.last()).into_value();
         //.expect("already checked that there were at least two elements");            .split_last()
         let ty = ty.ident.to_string();
         //        path
