@@ -11,12 +11,12 @@ use common::{
 use petgraph::{algo, Graph};
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::path;
-use Error;
-use Level;
 use std::ops::Deref;
+use std::path;
 use syn::export::ToTokens;
 use syn::spanned::Spanned;
+use Error;
+use Level;
 
 pub struct LangC {
     lib_name: String,
@@ -148,7 +148,7 @@ impl LangC {
         };
 
         let mut output = String::new();
-        output.push_str(format!("/*\n{}*/\n",docs).as_str());
+        output.push_str(format!("/*\n{}*/\n", docs).as_str());
         output.push_str(&full_declaration);
         output.push_str(";\n\n");
 
@@ -241,11 +241,7 @@ impl Lang for LangC {
                 });
             }
 
-            let (_, docs) = parse_attr(
-                &var.attrs,
-                |_| true,
-                |attr| retrieve_docstring(attr, "\t"),
-            );
+            let (_, docs) = parse_attr(&var.attrs, |_| true, |attr| retrieve_docstring(attr, "\t"));
             buffer.push_str(&docs);
             //TODO: Must be verified
             buffer.push_str(&format!("\t{}_{},\n", name, var.ident.to_string()));
@@ -305,7 +301,7 @@ impl Lang for LangC {
                 None => unreachable!("a tuple struct snuck through"),
             };
 
-            let ty = rust_to_c( &field.ty, &name)?;
+            let ty = rust_to_c(&field.ty, &name)?;
             self.add_dependencies(module, &ty.1)?;
             buffer.push_str(&format!("\t{};\n", ty));
         }
@@ -332,7 +328,6 @@ impl Lang for LangC {
         module: &[String],
         outputs: &mut Outputs,
     ) -> Result<(), Error> {
-
         let (no_mangle, docs) = parse_attr(&item.attrs[..], check_no_mangle, |attr| {
             retrieve_docstring(attr, "")
         });
@@ -343,11 +338,12 @@ impl Lang for LangC {
         }
 
         let name = item.ident.to_owned().to_string();
-
-        match item.abi.to_owned().unwrap().name.unwrap().value().as_str() {
-            // If it doesn't have a C ABI it can't be called from C.
-            "C" | "Cdecl" | "Stdcall" | "Fastcall" | "System" => {}
-            _ => return Ok(()),
+        if item.abi.to_owned().is_some() {
+            match item.abi.to_owned().unwrap().name.unwrap().value().as_str() {
+                // If it doesn't have a C ABI it can't be called from C.
+                "C" | "Cdecl" | "Stdcall" | "Fastcall" | "System" => {}
+                _ => return Ok(()),
+            }
         }
 
         if !item.decl.generics.params.is_empty() {
@@ -466,20 +462,20 @@ fn anon_rust_to_c(ty: &syn::Type) -> Result<CType, Error> {
 /// Turn a Rust pointer (*mut or *const) into the correct C form.
 fn ptr_to_c(typeptr: &syn::TypePtr) -> Result<CType, Error> {
     let new_type = anon_rust_to_c(&*typeptr.elem)?;
-    let mut const_type : CPtrType;
+    let mut const_type: CPtrType;
     if typeptr.mutability.is_some() {
         const_type = CPtrType::Mutable;
     } else {
         const_type = CPtrType::Const
     };
-//    let mut const_type = match typeptr.mutability.unwrap() {
-//        // *const T
-//        Some(..) => CPtrType::Mutable,
-//        _ => match typeptr.const_token.expect("") {
-//            Some(..) => CPtrType::Const,
-//            None => ,
-//        },
-//    };
+    //    let mut const_type = match typeptr.mutability.unwrap() {
+    //        // *const T
+    //        Some(..) => CPtrType::Mutable,
+    //        _ => match typeptr.const_token.expect("") {
+    //            Some(..) => CPtrType::Const,
+    //            None => ,
+    //        },
+    //    };
     Ok(CType::Ptr(Box::new(new_type), const_type))
 }
 
@@ -513,7 +509,13 @@ fn fn_ptr_to_c(fn_ty: &syn::TypeBareFn, inner: &str) -> Result<CType, Error> {
     } else {
         let mut args = vec![];
         for arg in fn_ty.inputs.to_owned() {
-            let mut arg_name1 = &arg.name.to_owned().unwrap().0.into_token_stream().to_string();
+            let mut arg_name1 = &arg
+                .name
+                .to_owned()
+                .unwrap()
+                .0
+                .into_token_stream()
+                .to_string();
             let arg_type = rust_to_c(&arg.ty, &arg_name1.as_str())?;
             args.push(arg_type);
         }

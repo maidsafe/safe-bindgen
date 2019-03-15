@@ -92,8 +92,8 @@ use std::fs::File;
 use std::io::Error as IoError;
 use std::io::{Read, Write};
 use std::path::{self, Component, Path, PathBuf};
-use syntax::codemap::{FilePathMapping,Span};
 use syn::export::Span as synspan;
+use syntax::codemap::{FilePathMapping, Span};
 
 #[cfg(test)]
 #[macro_use]
@@ -329,7 +329,7 @@ impl Bindgen {
         outputs: &mut Outputs,
         path: &PathBuf,
     ) -> Result<(), Vec<Error>> {
-        let _base_path = unwrap!(path.parent());
+        let base_path = unwrap!(path.parent());
         let mod_path = path.to_str().unwrap().to_string();
 
         // Parse the top level mod.
@@ -339,52 +339,37 @@ impl Bindgen {
         let mut content = String::new();
         unwrap!(file.read_to_string(&mut content));
         let ast = unwrap!(syn::parse_file(&content));
+        let mut imported: Vec<Vec<String>> = Vec::new();
 
         for item in ast.items {
             match &item {
-                syn::Item::Mod(ref item) => {
-                    parse::parse_mod(lang, item, &[path.to_str().unwrap().to_string()], outputs);
-                }
-                syn::Item::Const(ref item) => {
-                    lang.parse_const(item,&module,outputs);
-                }
-                syn::Item::Type(ref item) => {
-                    lang.parse_ty(item,&module,outputs);
-                }
-                syn::Item::Enum(ref item) => {
-                    lang.parse_enum(item,&module,outputs);
-                }
-                syn::Item::Fn(ref item) => {
-                    lang.parse_fn(item,&module,outputs);
-                }
-                syn::Item::Struct(ref item) => {
-                    lang.parse_struct(item,&module,outputs);
+                syn::Item::Use(ref itemuse) => {
+                    let imported = parse::imported_mods(itemuse);
+                    for module in imported {
+                        let mut mod_path = base_path.join(&format!(
+                            "{}.rs",
+                            module.join(&path::MAIN_SEPARATOR.to_string())
+                        ));
+
+                        if !mod_path.exists() {
+                            mod_path = base_path.join(&format!(
+                                "{}/mod.rs",
+                                module.join(&path::MAIN_SEPARATOR.to_string())
+                            ));
+                        }
+
+                        println!("Parsing {} ({:?})!!", module.join("::"), mod_path);
+
+                        let mut file = unwrap!(File::open(mod_path));
+                        let mut content = String::new();
+                        unwrap!(file.read_to_string(&mut content));
+                        let ast = unwrap!(syn::parse_file(&content));
+                        parse::parse_file(lang, &ast, &module, outputs)?;
+                    }
                 }
                 _ => {}
             }
         }
-        //let krate = unwrap!(syntax::parse::parse_crate_from_file(path, &self.session));
-        //let module = convert_lib_path_to_module(&PathBuf::from(mod_path.clone()));
-        //eprintln!("Parsing {} ({:?})", module.join("::"), mod_path);
-        //parse::parse_mod(lang, &krate.module, &module, outputs)?;
-
-        // Parse other mods.
-        //        let modules = parse::imported_mods(&krate.module);
-        //        for module in modules {
-        //            let mut mod_path = base_path.join(&format!(
-        //                "{}.rs",
-        //                module.join(&path::MAIN_SEPARATOR.to_string())
-        //            ));
-        //
-        //
-        //            if !mod_path.exists() {
-        //                mod_path = base_path.join(&format!(
-        //                    "{}/mod.rs",
-        //                    module.join(&path::MAIN_SEPARATOR.to_string())
-        //                ));
-        //            }
-        //
-        //            eprintln!("Parsing {} ({:?})", module.join("::"), mod_path);
         Ok(())
     }
 
@@ -405,19 +390,19 @@ impl Bindgen {
                     parse::parse_mod(lang, item, &module[..], outputs);
                 }
                 syn::Item::Const(ref item) => {
-                    lang.parse_const(item,&module[..],outputs);
+                    lang.parse_const(item, &module[..], outputs);
                 }
                 syn::Item::Type(ref item) => {
-                    lang.parse_ty(item,&module[..],outputs);
+                    lang.parse_ty(item, &module[..], outputs);
                 }
                 syn::Item::Enum(ref item) => {
-                    lang.parse_enum(item,&module[..],outputs);
+                    lang.parse_enum(item, &module[..], outputs);
                 }
                 syn::Item::Fn(ref item) => {
-                    lang.parse_fn(item,&module[..],outputs);
+                    lang.parse_fn(item, &module[..], outputs);
                 }
                 syn::Item::Struct(ref item) => {
-                    lang.parse_struct(item,&module[..],outputs);
+                    lang.parse_struct(item, &module[..], outputs);
                 }
                 _ => {}
             }
@@ -450,7 +435,6 @@ impl Bindgen {
 
             if let Some(parent_dirs) = full_path.parent() {
                 fs::create_dir_all(parent_dirs)?;
-
             }
 
             let mut f = fs::File::create(full_path)?;

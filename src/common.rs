@@ -1,10 +1,10 @@
 //! Functions common for all target languages.
 
-use std::collections::hash_map::{Entry, HashMap};
-use syn::export::ToTokens;
-use std::ops::Deref;
-use std::borrow::BorrowMut;
 use std::borrow::Borrow;
+use std::borrow::BorrowMut;
+use std::collections::hash_map::{Entry, HashMap};
+use std::ops::Deref;
+use syn::export::ToTokens;
 use Error;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -114,14 +114,19 @@ pub fn is_ptr_len_arg(ty: &syn::Type, arg_name: &str) -> bool {
 /// Detect array ptrs and skip the length args - e.g. for a case of
 /// `ptr: *const u8, ptr_len: usize` we're going to skip the `len` part.
 pub fn is_array_arg(arg: &syn::ArgCaptured, next_arg: Option<&syn::ArgCaptured>) -> bool {
-        if let syn::Type::Ptr(..) = arg.ty {
-                !is_result_arg(&arg)
-                && next_arg
-                .map(|arg| is_ptr_len_arg(&arg.ty, &*arg.to_owned().pat.into_token_stream().to_string()))
+    if let syn::Type::Ptr(..) = arg.ty {
+        !is_result_arg(&arg)
+            && next_arg
+                .map(|arg| {
+                    is_ptr_len_arg(
+                        &arg.ty,
+                        &*arg.to_owned().pat.into_token_stream().to_string(),
+                    )
+                })
                 .unwrap_or(false)
-        } else {
-            false
-        }
+    } else {
+        false
+    }
 }
 
 ///
@@ -151,7 +156,15 @@ where
 /// Check the attribute is #[repr(C)].
 pub fn check_repr_c(attr: &syn::Attribute) -> bool {
     match attr.parse_meta().unwrap() {
-        syn::Meta::List(ref word) if attr.to_owned().path.into_token_stream().to_string().as_str() == "repr" => {
+        syn::Meta::List(ref word)
+            if attr
+                .to_owned()
+                .path
+                .into_token_stream()
+                .to_string()
+                .as_str()
+                == "repr" =>
+        {
             match word.nested.first() {
                 Some(word) => {
                     match word.into_value() {
@@ -170,11 +183,18 @@ pub fn check_repr_c(attr: &syn::Attribute) -> bool {
 /// If the attribute is  a docstring, indent it the required amount and return it.
 pub fn retrieve_docstring(attr: &syn::Attribute, prepend: &str) -> Option<String> {
     match attr.parse_meta().unwrap() {
-        syn::Meta::NameValue(ref val) if attr.to_owned().path.into_token_stream().to_string().as_str() == "doc" => {
+        syn::Meta::NameValue(ref val)
+            if attr
+                .to_owned()
+                .path
+                .into_token_stream()
+                .to_string()
+                .as_str()
+                == "doc" =>
+        {
             match val.lit {
                 // Docstring attributes omit the trailing newline.
-                syn::Lit::Str(ref docs) =>
-                    Some(format!("{}{}\n", prepend, docs.value().as_str())),
+                syn::Lit::Str(ref docs) => Some(format!("{}{}\n", prepend, docs.value().as_str())),
                 _ => unreachable!("docs must be literal strings"),
             }
         }

@@ -65,79 +65,79 @@ fn main() {
             lang.set_lib_name(lib);
             bindgen.run_build(&mut lang, &output_dir)
         }
-//        "csharp" => {
-//            let mut lang = LangCSharp::new();
-//            lang.set_lib_name(lib);
-//            bindgen.run_build(&mut lang, &output_dir)
-//        }
-//        "java" => {
-//            let mut type_map = HashMap::new();
-//            type_map.insert(
-//                "XorNameArray",
-//                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
-//            );
-//            type_map.insert(
-//                "SignSecretKey",
-//                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
-//            );
-//            type_map.insert(
-//                "SignPublicKey",
-//                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
-//            );
-//            type_map.insert(
-//                "SymSecretKey",
-//                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
-//            );
-//            type_map.insert(
-//                "SymNonce",
-//                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
-//            );
-//            type_map.insert(
-//                "AsymPublicKey",
-//                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
-//            );
-//            type_map.insert(
-//                "AsymSecretKey",
-//                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
-//            );
-//            type_map.insert(
-//                "AsymNonce",
-//                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
-//            );
-//            type_map.insert("CipherOptHandle", JavaType::Primitive(Primitive::Long));
-//            type_map.insert("EncryptPubKeyHandle", JavaType::Primitive(Primitive::Long));
-//            type_map.insert("EncryptSecKeyHandle", JavaType::Primitive(Primitive::Long));
-//            type_map.insert("MDataEntriesHandle", JavaType::Primitive(Primitive::Long));
-//            type_map.insert(
-//                "MDataEntryActionsHandle",
-//                JavaType::Primitive(Primitive::Long),
-//            );
-//            type_map.insert(
-//                "MDataPermissionsHandle",
-//                JavaType::Primitive(Primitive::Long),
-//            );
-//            type_map.insert(
-//                "SelfEncryptorReaderHandle",
-//                JavaType::Primitive(Primitive::Long),
-//            );
-//            type_map.insert(
-//                "SelfEncryptorWriterHandle",
-//                JavaType::Primitive(Primitive::Long),
-//            );
-//            type_map.insert("SEReaderHandle", JavaType::Primitive(Primitive::Long));
-//            type_map.insert("SEWriterHandle", JavaType::Primitive(Primitive::Long));
-//            type_map.insert("SignPubKeyHandle", JavaType::Primitive(Primitive::Long));
-//            type_map.insert("SignSecKeyHandle", JavaType::Primitive(Primitive::Long));
-//            type_map.insert("FileContextHandle", JavaType::Primitive(Primitive::Long));
-//            type_map.insert("App", JavaType::Primitive(Primitive::Long));
-//            type_map.insert("Authenticator", JavaType::Primitive(Primitive::Long));
-//
-//            let mut java = LangJava::new(type_map);
-//            java.set_namespace(format!("net.maidsafe.{}", lib));
-//            java.set_model_namespace(format!("net.maidsafe.{}", lib));
-//            java.set_lib_name(lib);
-//            bindgen.run_build(&mut java, &output_dir);
-//        }
+        //        "csharp" => {
+        //            let mut lang = LangCSharp::new();
+        //            lang.set_lib_name(lib);
+        //            bindgen.run_build(&mut lang, &output_dir)
+        //        }
+        //        "java" => {
+        //            let mut type_map = HashMap::new();
+        //            type_map.insert(
+        //                "XorNameArray",
+        //                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
+        //            );
+        //            type_map.insert(
+        //                "SignSecretKey",
+        //                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
+        //            );
+        //            type_map.insert(
+        //                "SignPublicKey",
+        //                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
+        //            );
+        //            type_map.insert(
+        //                "SymSecretKey",
+        //                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
+        //            );
+        //            type_map.insert(
+        //                "SymNonce",
+        //                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
+        //            );
+        //            type_map.insert(
+        //                "AsymPublicKey",
+        //                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
+        //            );
+        //            type_map.insert(
+        //                "AsymSecretKey",
+        //                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
+        //            );
+        //            type_map.insert(
+        //                "AsymNonce",
+        //                JavaType::Array(Box::new(JavaType::Primitive(Primitive::Byte))),
+        //            );
+        //            type_map.insert("CipherOptHandle", JavaType::Primitive(Primitive::Long));
+        //            type_map.insert("EncryptPubKeyHandle", JavaType::Primitive(Primitive::Long));
+        //            type_map.insert("EncryptSecKeyHandle", JavaType::Primitive(Primitive::Long));
+        //            type_map.insert("MDataEntriesHandle", JavaType::Primitive(Primitive::Long));
+        //            type_map.insert(
+        //                "MDataEntryActionsHandle",
+        //                JavaType::Primitive(Primitive::Long),
+        //            );
+        //            type_map.insert(
+        //                "MDataPermissionsHandle",
+        //                JavaType::Primitive(Primitive::Long),
+        //            );
+        //            type_map.insert(
+        //                "SelfEncryptorReaderHandle",
+        //                JavaType::Primitive(Primitive::Long),
+        //            );
+        //            type_map.insert(
+        //                "SelfEncryptorWriterHandle",
+        //                JavaType::Primitive(Primitive::Long),
+        //            );
+        //            type_map.insert("SEReaderHandle", JavaType::Primitive(Primitive::Long));
+        //            type_map.insert("SEWriterHandle", JavaType::Primitive(Primitive::Long));
+        //            type_map.insert("SignPubKeyHandle", JavaType::Primitive(Primitive::Long));
+        //            type_map.insert("SignSecKeyHandle", JavaType::Primitive(Primitive::Long));
+        //            type_map.insert("FileContextHandle", JavaType::Primitive(Primitive::Long));
+        //            type_map.insert("App", JavaType::Primitive(Primitive::Long));
+        //            type_map.insert("Authenticator", JavaType::Primitive(Primitive::Long));
+        //
+        //            let mut java = LangJava::new(type_map);
+        //            java.set_namespace(format!("net.maidsafe.{}", lib));
+        //            java.set_model_namespace(format!("net.maidsafe.{}", lib));
+        //            java.set_lib_name(lib);
+        //            bindgen.run_build(&mut java, &output_dir);
+        //        }
         _ => unreachable!(),
     }
 }
