@@ -1,8 +1,6 @@
 //! Functions for actually parsing the source file.
 
 use common::{Lang, Outputs};
-use syn::export::ToTokens;
-use syntax::ast;
 use Error;
 
 pub fn parse_usetree(usetree: &syn::UseTree) -> Vec<String> {
@@ -17,7 +15,7 @@ pub fn parse_usetree(usetree: &syn::UseTree) -> Vec<String> {
     if let syn::UseTree::Name(ref name) = usetree {
         modules.push(name.ident.to_owned().to_string());
     };
-    if let syn::UseTree::Glob(ref glob) = usetree {
+    if let syn::UseTree::Glob(ref _glob) = usetree {
         return modules;
     };
     modules
@@ -110,27 +108,27 @@ pub fn parse_file<L: Lang>(
         // Dispatch to correct method.
         let res = match item {
             syn::Item::Mod(ref item) => {
-                parse_mod(lang, item, mod_path, outputs);
+                parse_mod(lang, item, mod_path, outputs)?;
                 Ok(())
             }
             syn::Item::Const(ref item) => {
-                lang.parse_const(item, mod_path, outputs);
+                lang.parse_const(item, mod_path, outputs)?;
                 Ok(())
             }
             syn::Item::Type(ref item) => {
-                lang.parse_ty(item, mod_path, outputs);
+                lang.parse_ty(item, mod_path, outputs)?;
                 Ok(())
             }
             syn::Item::Enum(ref item) => {
-                lang.parse_enum(item, mod_path, outputs);
+                lang.parse_enum(item, mod_path, outputs)?;
                 Ok(())
             }
             syn::Item::Fn(ref item) => {
-                lang.parse_fn(item, mod_path, outputs);
+                lang.parse_fn(item, mod_path, outputs)?;
                 Ok(())
             }
             syn::Item::Struct(ref item) => {
-                lang.parse_struct(&item, mod_path, outputs);
+                lang.parse_struct(&item, mod_path, outputs)?;
                 Ok(())
             }
             _ => Ok(()),
@@ -214,32 +212,32 @@ pub fn parse_mod<L: Lang>(
             let res = match item {
                 syn::Item::Mod(ref item) => {
                     println!("Mod found inside a Mod");
-                    parse_mod(lang, item, mod_path, outputs);
+                    parse_mod(lang, item, mod_path, outputs)?;
                     Ok(())
                 }
                 syn::Item::Const(ref item) => {
                     println!("Const found inside mod");
-                    lang.parse_const(item, mod_path, outputs);
+                    lang.parse_const(item, mod_path, outputs)?;
                     Ok(())
                 }
                 syn::Item::Type(ref item) => {
                     println!("Type found inside mod");
-                    lang.parse_ty(item, mod_path, outputs);
+                    lang.parse_ty(item, mod_path, outputs)?;
                     Ok(())
                 }
                 syn::Item::Enum(ref item) => {
                     println!("Enum found inside mod");
-                    lang.parse_enum(item, mod_path, outputs);
+                    lang.parse_enum(item, mod_path, outputs)?;
                     Ok(())
                 }
                 syn::Item::Fn(ref item) => {
                     println!("Fn found inside mod");
-                    lang.parse_fn(item, mod_path, outputs);
+                    lang.parse_fn(item, mod_path, outputs)?;
                     Ok(())
                 }
                 syn::Item::Struct(ref item) => {
                     println!("Struct found inside mod");
-                    lang.parse_struct(&item, mod_path, outputs);
+                    lang.parse_struct(&item, mod_path, outputs)?;
                     Ok(())
                 }
                 _ => Ok(()),

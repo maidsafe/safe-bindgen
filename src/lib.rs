@@ -51,7 +51,6 @@
 #![cfg_attr(not(feature = "with-syntex"), feature(rustc_private))]
 #![recursion_limit = "128"]
 
-extern crate inflector;
 #[cfg(not(feature = "with-syntex"))]
 extern crate rustc_errors as errors;
 #[cfg(not(feature = "with-syntex"))]
@@ -61,9 +60,9 @@ extern crate syntex_errors as errors;
 #[cfg(feature = "with-syntex")]
 extern crate syntex_syntax as syntax;
 extern crate toml;
-#[macro_use]
+//#[macro_use]
 extern crate quote;
-extern crate jni;
+//extern crate jni;
 extern crate petgraph;
 extern crate rustfmt;
 
@@ -92,7 +91,7 @@ use std::fs::File;
 use std::io::Error as IoError;
 use std::io::{Read, Write};
 use std::path::{self, Component, Path, PathBuf};
-use syn::export::Span as synspan;
+//use syn::export::Span as synspan;
 use syntax::codemap::{FilePathMapping, Span};
 
 #[cfg(test)]
@@ -333,13 +332,11 @@ impl Bindgen {
         let mod_path = unwrap!(path.to_str()).to_string();
 
         // Parse the top level mod.
-        let module = convert_lib_path_to_module(&PathBuf::from(mod_path.clone()));
         // Creates AST for the entire file
         let mut file = unwrap!(File::open(path));
         let mut content = String::new();
         unwrap!(file.read_to_string(&mut content));
         let ast = unwrap!(syn::parse_file(&content));
-        let mut imported: Vec<Vec<String>> = Vec::new();
 
         for item in ast.items {
             match &item {
@@ -387,22 +384,22 @@ impl Bindgen {
         for item in _ast.items {
             match &item {
                 syn::Item::Mod(ref item) => {
-                    parse::parse_mod(lang, item, &module[..], outputs);
+                    parse::parse_mod(lang, item, &module[..], outputs)?;
                 }
                 syn::Item::Const(ref item) => {
-                    lang.parse_const(item, &module[..], outputs);
+                    lang.parse_const(item, &module[..], outputs)?;
                 }
                 syn::Item::Type(ref item) => {
-                    lang.parse_ty(item, &module[..], outputs);
+                    lang.parse_ty(item, &module[..], outputs)?;
                 }
                 syn::Item::Enum(ref item) => {
-                    lang.parse_enum(item, &module[..], outputs);
+                    lang.parse_enum(item, &module[..], outputs)?;
                 }
                 syn::Item::Fn(ref item) => {
-                    lang.parse_fn(item, &module[..], outputs);
+                    lang.parse_fn(item, &module[..], outputs)?;
                 }
                 syn::Item::Struct(ref item) => {
-                    lang.parse_struct(item, &module[..], outputs);
+                    lang.parse_struct(item, &module[..], outputs)?;
                 }
                 _ => {}
             }

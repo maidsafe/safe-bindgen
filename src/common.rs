@@ -1,9 +1,6 @@
 //! Functions common for all target languages.
 
-use std::borrow::Borrow;
-use std::borrow::BorrowMut;
 use std::collections::hash_map::{Entry, HashMap};
-use std::ops::Deref;
 use syn::export::ToTokens;
 use Error;
 

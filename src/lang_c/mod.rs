@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::ops::Deref;
 use std::path;
 use syn::export::ToTokens;
-use syn::spanned::Spanned;
+
 use Error;
 use Level;
 
@@ -94,7 +94,6 @@ impl LangC {
         // and parameters, then passing that whole thing to `rust_to_c`.
 
         let mut args = vec![];
-        let len = &fn_decl.decl.inputs.len();
 
         // Arguments
         for arg in &fn_decl.decl.inputs {
@@ -179,7 +178,6 @@ impl Lang for LangC {
             |_| true,
             |attr| retrieve_docstring(attr, ""),
         );
-
 
         let mut buffer = String::new();
 
@@ -277,7 +275,7 @@ impl Lang for LangC {
         }
 
         let mut buffer = String::new();
-        buffer.push_str(format!("{}",&docs).as_str());
+        buffer.push_str(format!("{}", &docs).as_str());
 
         let name = item.ident.to_string();
         buffer.push_str(&format!("typedef struct {}", name));
@@ -296,7 +294,7 @@ impl Lang for LangC {
                 |_| true,
                 |attr| retrieve_docstring(attr, "\t"),
             );
-            buffer.push_str(format!("{}",&docs).as_str());
+            buffer.push_str(format!("{}", &docs).as_str());
 
             let name = match field.ident.to_owned() {
                 Some(name) => name.to_string(),
@@ -439,7 +437,10 @@ fn anon_rust_to_c(ty: &syn::Type) -> Result<CType, Error> {
                     .into(),
         }),
         // Fixed-length arrays, converted into pointers.
-        syn::Type::Array(ref ty1) => Ok(CType::Ptr(Box::new(anon_rust_to_c(&*ty1.elem)?), CPtrType::Const)),
+        syn::Type::Array(ref ty1) => Ok(CType::Ptr(
+            Box::new(anon_rust_to_c(&*ty1.elem)?),
+            CPtrType::Const,
+        )),
         // Standard pointers.
         syn::Type::Ptr(ref ptr) => ptr_to_c(ptr),
         // Plain old types.
@@ -464,7 +465,7 @@ fn anon_rust_to_c(ty: &syn::Type) -> Result<CType, Error> {
 /// Turn a Rust pointer (*mut or *const) into the correct C form.
 fn ptr_to_c(typeptr: &syn::TypePtr) -> Result<CType, Error> {
     let new_type = anon_rust_to_c(&*typeptr.elem)?;
-    let mut const_type: CPtrType;
+    let const_type: CPtrType;
     if typeptr.mutability.is_some() {
         const_type = CPtrType::Mutable;
     } else {
