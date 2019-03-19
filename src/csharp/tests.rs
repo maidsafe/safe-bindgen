@@ -1,5 +1,5 @@
 use super::*;
-use crate::test_utils::fetch;
+use test_utils::fetch;
 
 #[test]
 fn non_repr_c_types_are_ignored() {

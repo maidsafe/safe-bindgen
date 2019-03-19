@@ -1,12 +1,10 @@
 //! Types and utilities for the intermediate representation between the rust code
 //! and the target language code.
 
-use crate::common;
-use crate::syntax::ast;
-use crate::syntax::print::pprust;
-use crate::syntax::ptr;
+use common;
 use std::collections::BTreeMap;
-
+use std::ops::Deref;
+use syn::export::ToTokens;
 // TODO: replace whit macro with the ? operator one we upgrade to rust 1.22
 macro_rules! try_opt {
     ($e:expr) => {
@@ -117,7 +115,7 @@ pub fn transform_type(input: &syn::Type) -> Option<Type> {
         syn::Type::Path(ref path) => transform_path(path),
         syn::Type::Ptr(ref ptr) => transform_pointer(ptr),
         syn::Type::Reference(ref rawptr) => {
-            transform_reference(&unwrap!(rawptr.lifetime), rawptr.elem.deref())
+            transform_reference(&unwrap!(rawptr.to_owned().lifetime), rawptr.elem.deref())
         }
         syn::Type::BareFn(ref bare_fn) => {
             transform_function_from_type(&bare_fn).map(|fun| Type::Function(Box::new(fun)))
@@ -144,13 +142,13 @@ pub fn transform_function_from_type(decl: &syn::TypeBareFn) -> Option<Function> 
         let one = if let Some(param) = carry.take() {
             Some(param)
         } else if let Some(arg) = iter.next() {
-            Some(try_opt!(transform_function_param(arg)))
+            Some(try_opt!(transform_function_param_from_type(arg)))
         } else {
             None
         };
 
         let two = if let Some(arg) = iter.next() {
-            Some(try_opt!(transform_function_param(arg)))
+            Some(try_opt!(transform_function_param_from_type(arg)))
         } else {
             None
         };
@@ -194,13 +192,13 @@ pub fn transform_function(func: syn::FnDecl) -> Option<Function> {
         let one = if let Some(param) = carry.take() {
             Some(param)
         } else if let Some(arg) = iter.next() {
-            Some(try_opt!(transform_function_param(arg)))
+            Some(try_opt!(transform_function_param(&arg)))
         } else {
             None
         };
 
         let two = if let Some(arg) = iter.next() {
-            Some(try_opt!(transform_function_param(arg)))
+            Some(try_opt!(transform_function_param(&arg)))
         } else {
             None
         };
@@ -225,12 +223,33 @@ pub fn transform_function(func: syn::FnDecl) -> Option<Function> {
     }
     Some(Function { inputs, output })
 }
-pub fn transform_function_param(arg: &syn::BareFnArg) -> Option<(String, Type)> {
-    if let Some(ty) = transform_type(&arg.ty) {
-        let name = unwrap!(arg.name).to_string();
-        Some((name, ty))
+
+pub fn transform_function_param_from_type(fnarg: &syn::BareFnArg) -> Option<(String, Type)> {
+    if let Some(ty) = transform_type(&fnarg.ty) {
+        let mut name = String::new();
+        if let syn::BareFnArgName::Named(id) = fnarg.to_owned().name.unwrap().0 {
+            name.push_str(id.to_owned().to_string().as_str());
+        }
+        return Some((name.to_owned().to_string(), ty));
     } else {
-        None
+        return None;
+    }
+}
+
+pub fn transform_function_param(fnarg: &syn::FnArg) -> Option<(String, Type)> {
+    if let syn::FnArg::Captured(ref arg) = fnarg {
+        let ty = transform_type(&arg.ty);
+        let mut name = String::new();
+        if let syn::Pat::Ident(ref id) = arg.pat {
+            name.push_str(id.ident.to_owned().to_string().as_str());
+        }
+        if ty.is_some() {
+            return Some((name, ty.unwrap()));
+        } else {
+            return None;
+        }
+    } else {
+        return None;
     }
 }
 
@@ -245,7 +264,7 @@ pub fn transform_enum(variants: &[syn::Variant]) -> Option<Enum> {
     let variants: Option<Vec<_>> = variants
         .into_iter()
         .map(|variant| {
-            if !variant == syn::Fields::Unit {
+            if let syn::Fields::Unit = variant.fields {
                 return None;
             }
 
@@ -265,7 +284,7 @@ pub fn transform_struct(fields: syn::Fields) -> Option<Struct> {
         .iter()
         .map(|field| {
             let (_, docs) = common::parse_attr(&field.attrs[..], |_| true, retrieve_docstring);
-            let name = unwrap!(field.ident).to_string();
+            let name = unwrap!(field.to_owned().ident).to_string();
             let ty = unwrap!(transform_type(&field.ty));
 
             Some(StructField {
@@ -331,12 +350,12 @@ pub fn retrieve_docstring(attr: &syn::Attribute) -> Option<String> {
 }
 
 fn transform_const_value(expr: &syn::Expr) -> Option<ConstValue> {
-    match expr.node {
+    match expr {
         syn::Expr::Lit(ref ExprLit) => transform_const_literal(&ExprLit.lit),
         syn::Expr::Array(ref Array) => transform_const_array(Array),
         syn::Expr::Struct(ref Struct) => transform_const_struct(Struct),
-        syn::Expr::Reference(ref expr) => transform_const_value(expr),
-        syn::Expr::Cast(ref exprcast) => transform_const_cast(&*exprcast.expr, expr.ty),
+        syn::Expr::Reference(ref exprref) => transform_const_value(expr),
+        syn::Expr::Cast(ref exprcast) => transform_const_cast(&*exprcast.expr, &*exprcast.ty),
         _ => None,
     }
 }
@@ -345,9 +364,11 @@ fn transform_const_literal(lit: &syn::Lit) -> Option<ConstValue> {
     let result = match lit {
         syn::Lit::Bool(ref lit) => ConstValue::Bool(lit.value),
         syn::Lit::Byte(ref lit) => ConstValue::Int(i64::from(lit.value())),
-        syn::Lit::Char(ref lit) => ConstValue::Char(lit.value),
+        syn::Lit::Char(ref lit) => ConstValue::Char(lit.value()),
         syn::Lit::Int(ref lit) => ConstValue::Int(lit.value() as i64),
-        syn::Lit::Float(ref lit) => ConstValue::Float(lit.value() as String),
+        syn::Lit::Float(ref lit) => {
+            ConstValue::Float(lit.to_owned().into_token_stream().to_string())
+        }
         syn::Lit::Str(ref lit, ..) => ConstValue::String(lit.value()),
         // TODO: LitKind::ByteStr
         _ => return None,
@@ -358,22 +379,24 @@ fn transform_const_literal(lit: &syn::Lit) -> Option<ConstValue> {
 
 fn transform_const_array(array: &syn::ExprArray) -> Option<ConstValue> {
     let elements: Option<Vec<_>> = array
+        .to_owned()
         .elems
         .into_iter()
-        .map(|expr| transform_const_value(expr))
+        .map(|expr| transform_const_value(&expr))
         .collect();
 
     elements.map(ConstValue::Array)
 }
 
 fn transform_const_struct(Struct: &syn::ExprStruct) -> Option<ConstValue> {
-    let name = Struct.path.into_token_stream().to_string();
+    let name = Struct.to_owned().path.into_token_stream().to_string();
     let fields: Option<BTreeMap<_, _>> = Struct
+        .to_owned()
         .fields
         .into_iter()
         .map(|field| {
-            if let Some(value) = transform_const_value(&*field.expr) {
-                let name = field.ident.to_string();
+            if let Some(value) = transform_const_value(&field.expr) {
+                let name = field.member.to_owned().into_token_stream().to_string();
                 Some((name, value))
             } else {
                 None
@@ -401,7 +424,7 @@ fn transform_array(ty: &syn::TypeArray, size: &syn::Expr) -> Option<Type> {
         Some(size) => size,
     };
 
-    let ty = match transform_type(ty.elem.deref()) {
+    let ty = match transform_type(&*ty.elem) {
         None | Some(Type::Array { .. }) => return None, // multi-dimensional array not supported yet
         Some(ty) => ty,
     };
@@ -472,7 +495,7 @@ fn transform_ptr_and_len_to_array(
 }
 
 fn transform_path(input: &syn::TypePath) -> Option<Type> {
-    let full = input.path.into_token_stream().to_string();
+    let full = input.to_owned().path.into_token_stream().to_string();
     let output = match full.as_str() {
         "bool" => Type::Bool,
         "char" => Type::Char,
@@ -498,7 +521,7 @@ fn transform_path(input: &syn::TypePath) -> Option<Type> {
 }
 
 fn transform_pointer(ptr: &syn::TypePtr) -> Option<Type> {
-    match transform_type(&ptr.elem.deref()) {
+    match transform_type(&*ptr.elem) {
         Some(Type::CChar) => Some(Type::String),
         Some(ty) => Some(Type::Pointer(Box::new(ty))),
         _ => None,
@@ -506,10 +529,7 @@ fn transform_pointer(ptr: &syn::TypePtr) -> Option<Type> {
 }
 
 fn transform_reference(lifetime: &syn::Lifetime, ty: &syn::Type) -> Option<Type> {
-    if lifetime
-        .map(|lifetime| lifetime.ident.to_string().as_str() != "'static")
-        .unwrap_or(false)
-    {
+    if lifetime.ident.to_owned().to_string().as_str() != "static" {
         return None;
     }
 
@@ -522,7 +542,7 @@ fn transform_reference(lifetime: &syn::Lifetime, ty: &syn::Type) -> Option<Type>
 
 fn extract_enum_variant_value(variant: &syn::Variant) -> Option<i64> {
     if let Some(ref expr) = variant.discriminant {
-        if let syn::Expr::Lit(ref lit) = expr {
+        if let syn::Expr::Lit(ref lit) = expr.1 {
             return extract_int_literal(lit);
         }
     }

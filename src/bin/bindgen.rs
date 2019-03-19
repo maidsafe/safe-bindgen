@@ -6,7 +6,7 @@ extern crate safe_bindgen;
 extern crate unwrap;
 
 //use jni::signature::{JavaType, Primitive};
-use safe_bindgen::{Bindgen, LangC};
+use safe_bindgen::{Bindgen, LangC, LangCSharp};
 //use std::collections::HashMap;
 
 fn main() {
@@ -65,11 +65,11 @@ fn main() {
             lang.set_lib_name(lib);
             bindgen.run_build(&mut lang, &output_dir)
         }
-        //        "csharp" => {
-        //            let mut lang = LangCSharp::new();
-        //            lang.set_lib_name(lib);
-        //            bindgen.run_build(&mut lang, &output_dir)
-        //        }
+        "csharp" => {
+            let mut lang = LangCSharp::new();
+            lang.set_lib_name(lib);
+            bindgen.run_build(&mut lang, &output_dir)
+        }
         //        "java" => {
         //            let mut type_map = HashMap::new();
         //            type_map.insert(

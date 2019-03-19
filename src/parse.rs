@@ -22,20 +22,23 @@ pub fn parse_usetree(usetree: &syn::UseTree) -> Vec<String> {
 }
 
 /// Returns a list of FFI submodules imported in a top-level module
-pub fn imported_mods(import: &syn::ItemUse) -> Vec<Vec<String>> {
-    let mut imported = Vec::new();
+pub fn imported_mods(import: &syn::ItemUse) -> Option<Vec<String>> {
+    //    let mut imported: Vec<Sti> = Vec::new();
     // If it's not visible it can't be called from C.
     let mut segments = Vec::new();
 
     if let syn::Visibility::Inherited = import.vis {
-        return imported;
+        None
     } else {
         segments = parse_usetree(&import.tree);
 
         if &segments[0] == "ffi" {
-            imported.push(segments);
+            Some(segments)
+        } else {
+            None
         }
-        imported
+        //        println!("{:?}",imported);
+        //        imported
     }
 }
 

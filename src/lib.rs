@@ -80,7 +80,7 @@ extern crate unwrap;
 
 pub use common::FilterMode;
 use common::{Lang, Outputs};
-//pub use csharp::LangCSharp;
+pub use csharp::LangCSharp;
 pub use errors::Level;
 //pub use java::LangJava;
 pub use lang_c::LangC;
@@ -98,7 +98,7 @@ use syntax::codemap::{FilePathMapping, Span};
 #[macro_use]
 mod test_utils;
 mod common;
-//mod csharp;
+mod csharp;
 //mod java;
 mod lang_c;
 mod output;
@@ -337,35 +337,38 @@ impl Bindgen {
         let mut content = String::new();
         unwrap!(file.read_to_string(&mut content));
         let ast = unwrap!(syn::parse_file(&content));
-
+        let mut imported: Vec<Vec<String>> = Vec::new();
         for item in ast.items {
             match &item {
                 syn::Item::Use(ref itemuse) => {
-                    let imported = parse::imported_mods(itemuse);
-                    for module in imported {
-                        let mut mod_path = base_path.join(&format!(
-                            "{}.rs",
-                            module.join(&path::MAIN_SEPARATOR.to_string())
-                        ));
-
-                        if !mod_path.exists() {
-                            mod_path = base_path.join(&format!(
-                                "{}/mod.rs",
-                                module.join(&path::MAIN_SEPARATOR.to_string())
-                            ));
-                        }
-
-                        println!("Parsing {} ({:?})", module.join("::"), mod_path);
-
-                        let mut file = unwrap!(File::open(mod_path));
-                        let mut content = String::new();
-                        unwrap!(file.read_to_string(&mut content));
-                        let ast = unwrap!(syn::parse_file(&content));
-                        parse::parse_file(lang, &ast, &module, outputs)?;
+                    if parse::imported_mods(itemuse).is_some() {
+                        imported.push(parse::imported_mods(itemuse).unwrap());
                     }
                 }
                 _ => {}
             }
+        }
+        println!("{:?}", imported);
+        for module in imported {
+            let mut mod_path = base_path.join(&format!(
+                "{}.rs",
+                module.join(&path::MAIN_SEPARATOR.to_string())
+            ));
+
+            if !mod_path.exists() {
+                mod_path = base_path.join(&format!(
+                    "{}/mod.rs",
+                    module.join(&path::MAIN_SEPARATOR.to_string())
+                ));
+            }
+
+            println!("Parsing {} ({:?})", module.join("::"), mod_path);
+
+            let mut file = unwrap!(File::open(mod_path));
+            let mut content = String::new();
+            unwrap!(file.read_to_string(&mut content));
+            let ast = unwrap!(syn::parse_file(&content));
+            parse::parse_file(lang, &ast, &module, outputs)?;
         }
         Ok(())
     }
