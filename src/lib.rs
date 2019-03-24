@@ -329,7 +329,7 @@ impl Bindgen {
         path: &PathBuf,
     ) -> Result<(), Vec<Error>> {
         let base_path = unwrap!(path.parent());
-        let mod_path = unwrap!(path.to_str()).to_string();
+        let mod_path: String = unwrap!(path.to_str()).to_string();
 
         // Parse the top level mod.
         // Creates AST for the entire file
@@ -345,10 +345,13 @@ impl Bindgen {
                         imported.push(parse::imported_mods(itemuse).unwrap());
                     }
                 }
+                // Parsing const in lib.rs for CSharp
+                syn::Item::Const(ref item) => {
+                    lang.parse_const(item, &[mod_path.clone()], outputs)?;
+                }
                 _ => {}
             }
         }
-        println!("{:?}", imported);
         for module in imported {
             let mut mod_path = base_path.join(&format!(
                 "{}.rs",

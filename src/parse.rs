@@ -37,8 +37,6 @@ pub fn imported_mods(import: &syn::ItemUse) -> Option<Vec<String>> {
         } else {
             None
         }
-        //        println!("{:?}",imported);
-        //        imported
     }
 }
 
@@ -214,32 +212,26 @@ pub fn parse_mod<L: Lang>(
             // Dispatch to correct method.
             let res = match item {
                 syn::Item::Mod(ref item) => {
-                    println!("Mod found inside a Mod");
                     parse_mod(lang, item, mod_path, outputs)?;
                     Ok(())
                 }
                 syn::Item::Const(ref item) => {
-                    println!("Const found inside mod");
                     lang.parse_const(item, mod_path, outputs)?;
                     Ok(())
                 }
                 syn::Item::Type(ref item) => {
-                    println!("Type found inside mod");
                     lang.parse_ty(item, mod_path, outputs)?;
                     Ok(())
                 }
                 syn::Item::Enum(ref item) => {
-                    println!("Enum found inside mod");
                     lang.parse_enum(item, mod_path, outputs)?;
                     Ok(())
                 }
                 syn::Item::Fn(ref item) => {
-                    println!("Fn found inside mod");
                     lang.parse_fn(item, mod_path, outputs)?;
                     Ok(())
                 }
                 syn::Item::Struct(ref item) => {
-                    println!("Struct found inside mod");
                     lang.parse_struct(&item, mod_path, outputs)?;
                     Ok(())
                 }

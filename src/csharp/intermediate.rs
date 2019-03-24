@@ -439,7 +439,7 @@ fn extract_array_size(expr: &syn::Expr) -> Option<ArraySize> {
         }
         syn::Expr::Path(ref path) => {
             // Currently supports only unqualified constants.
-            if path.path.segments.len() > 1 || path.path.segments.first().is_some() {
+            if !(path.path.segments.len() > 1 || path.path.segments.first().is_some()) {
                 None
             } else {
                 Some(ArraySize::Const(

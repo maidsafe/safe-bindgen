@@ -332,7 +332,6 @@ impl Lang for LangCSharp {
         }
 
         let docs = common::parse_attr(&item.attrs, |_| true, retrieve_docstring).1;
-
         let item = transform_const(&*item.ty, &*item.expr).ok_or_else(|| Error {
             level: Level::Error,
             span: None, //NONE FOR NOW
@@ -436,7 +435,6 @@ impl Lang for LangCSharp {
         }
         let (no_mangle, docs) =
             common::parse_attr(&item.attrs, common::check_no_mangle, retrieve_docstring);
-        //println!("{}",docs);
 
         // Ignore function without #[no_mangle].
         if no_mangle {
@@ -459,7 +457,7 @@ impl Lang for LangCSharp {
                 message: format!("bindgen can not handle function {}", string),
             }
         })?;
-        //println!("{}", name);
+
         self.functions.push(Snippet {
             docs,
             name: name,
