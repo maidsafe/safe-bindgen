@@ -1,25 +1,25 @@
-use crate::syntax::print::pprust;
-use crate::syntax::{ast, symbol};
 use std::collections::BTreeSet;
+use syn::export::ToTokens;
+use core::borrow::Borrow;
 
 #[derive(Debug)]
 pub enum StructField {
-    Primitive(ast::StructField),
+    Primitive(syn::Field),
     Array {
-        field: ast::StructField,
+        field: syn::Field,
         len_field: String,
         cap_field: Option<String>,
     },
-    String(ast::StructField),
+    String(syn::Field),
     StructPtr {
-        field: ast::StructField,
-        ty: ast::MutTy,
+        field: syn::Field,
+        ty: syn::TypePtr,
     },
-    LenField(ast::StructField),
+    LenField(syn::Field),
 }
 
 impl StructField {
-    pub fn struct_field(&self) -> &ast::StructField {
+    pub fn struct_field(&self) -> &syn::Field {
         match *self {
             StructField::Primitive(ref f)
             | StructField::Array { field: ref f, .. }
@@ -29,24 +29,24 @@ impl StructField {
         }
     }
 
-    pub fn name(&self) -> symbol::InternedString {
-        unwrap!(self.struct_field().ident).name.as_str()
+    pub fn name(&self) -> &str {
+        self.struct_field().ident.unwrap().to_string().as_str()
     }
 }
 
-pub fn transform_struct_fields(fields: &[ast::StructField]) -> Vec<StructField> {
+pub fn transform_struct_fields(fields: &[syn::Field]) -> Vec<StructField> {
     let mut results = Vec::new();
     let field_names: BTreeSet<_> = fields
         .iter()
-        .map(|f| unwrap!(f.ident).name.as_str().to_string())
+        .map(|f| f.ident.unwrap().to_string())
         .collect();
 
     for f in fields {
-        let mut field_name: String = unwrap!(f.ident).name.as_str().to_string();
+        let mut field_name: String = f.ident.unwrap().to_string();
 
-        match f.ty.node {
+        match f.ty {
             // Pointers
-            ast::TyKind::Ptr(ref ptr) => {
+            syn::Type::Ptr(ref ptr) => {
                 if field_name.ends_with("_ptr") {
                     field_name = field_name.chars().take(field_name.len() - 4).collect();
                 }
@@ -56,7 +56,7 @@ pub fn transform_struct_fields(fields: &[ast::StructField]) -> Vec<StructField> 
 
                 if field_names.contains(&len_field) {
                     results.push(StructField::Array {
-                        field: f.clone(),
+                        field: *f,
                         len_field,
                         cap_field: if field_names.contains(&cap_field) {
                             Some(cap_field)
@@ -65,23 +65,23 @@ pub fn transform_struct_fields(fields: &[ast::StructField]) -> Vec<StructField> 
                         },
                     });
                 } else {
-                    match pprust::ty_to_string(&ptr.ty).as_str() {
+                    match ptr.into_token_stream().to_string().as_str() {
                         // Strings
                         "c_char" => {
-                            results.push(StructField::String(f.clone()));
+                            results.push(StructField::String(*f));
                         }
                         // Other ptrs, most likely structs
                         _ => {
                             results.push(StructField::StructPtr {
-                                field: f.clone(),
-                                ty: ptr.clone(),
+                                field: *f,
+                                ty: *ptr,
                             });
                         }
                     }
                 }
             }
 
-            ast::TyKind::Path(None, ref _path) => {
+            syn::Type::Path(ref _path) => {
                 results.push(if is_array_meta_field(f) {
                     StructField::LenField(f.clone())
                 } else {
@@ -96,15 +96,24 @@ pub fn transform_struct_fields(fields: &[ast::StructField]) -> Vec<StructField> 
     results
 }
 
-fn is_array_meta_field(field: &ast::StructField) -> bool {
-    let str_name = unwrap!(field.ident).name.as_str();
-
-    if let ast::TyKind::Path(None, ref path) = field.ty.node {
-        let (ty, _module) = path
+fn is_array_meta_field(field: &syn::Field) -> bool {
+    let str_name = field
+        .ident
+        .unwrap()
+        .into_token_stream()
+        .to_string()
+        .as_str();
+    if let syn::Type::Path(ref path) = field.ty {
+        let ty = path
+            .path
             .segments
-            .split_last()
-            .expect("already checked that there were at least two elements");
-        let ty: &str = &ty.identifier.name.as_str();
+            .last()
+            .unwrap()
+            .value()
+            .ident
+            .into_token_stream()
+            .to_string()
+            .as_str();
 
         ty == "usize" && (str_name.ends_with("_len") || str_name.ends_with("_cap"))
     } else {

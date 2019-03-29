@@ -61,9 +61,9 @@ extern crate syntex_errors as errors;
 extern crate syntex_syntax as syntax;
 extern crate toml;
 //#[macro_use]
-extern crate quote;
-//extern crate jni;
+extern crate jni;
 extern crate petgraph;
+extern crate quote;
 extern crate rustfmt;
 
 extern crate syn;
@@ -77,12 +77,13 @@ extern crate diff;
 extern crate indoc;
 #[macro_use]
 extern crate unwrap;
+extern crate core;
 
 pub use common::FilterMode;
 use common::{Lang, Outputs};
 pub use csharp::LangCSharp;
 pub use errors::Level;
-//pub use java::LangJava;
+pub use java::LangJava;
 pub use lang_c::LangC;
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -99,11 +100,11 @@ use syntax::codemap::{FilePathMapping, Span};
 mod test_utils;
 mod common;
 mod csharp;
-//mod java;
+mod java;
 mod lang_c;
 mod output;
 mod parse;
-//mod struct_field;
+mod struct_field;
 
 /// Describes an error encountered by the compiler.
 ///

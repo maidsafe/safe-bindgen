@@ -3,20 +3,18 @@
 mod jni;
 mod types;
 
-use crate::common::{
-    self, append_output, check_no_mangle, is_array_arg, is_user_data_arg, parse_attr,
-    retrieve_docstring, FilterMode, Outputs,
-};
-use crate::java::types::{callback_name, java_type_to_str, rust_to_java, struct_to_java_classname};
-use crate::jni::signature::JavaType;
-use crate::struct_field::{transform_struct_fields, StructField};
-use crate::syntax::abi::Abi;
-use crate::syntax::print::pprust;
-use crate::syntax::{ast, codemap};
-use crate::Error;
-use crate::Level;
+use common::{self, append_output, check_no_mangle, is_array_arg, is_user_data_arg, parse_attr, retrieve_docstring, transform_fnarg_to_argcap, FilterMode, Outputs, is_user_data_arg_barefn, is_array_arg_barefn};
 use inflector::Inflector;
+use java::types::{callback_name, java_type_to_str, rust_to_java, struct_to_java_classname};
+use jni::signature::JavaType;
+use rustfmt;
 use std::collections::{BTreeSet, HashMap, HashSet};
+use struct_field::{transform_struct_fields, StructField};
+use syntax::abi::Abi;
+use syntax::print::pprust;
+use syntax::{ast, codemap};
+use Error;
+use Level;
 
 pub struct LangJava {
     context: Context,
@@ -138,15 +136,16 @@ impl common::Lang for LangJava {
     /// Convert a Rust function declaration into Java.
     fn parse_fn(
         &mut self,
-        item: &ast::Item,
+        item: &syn::ItemFn,
         _module: &[String],
         outputs: &mut Outputs,
     ) -> Result<(), Error> {
-        let name = item.ident.name.as_str();
+        let name = item.ident.to_owned().to_string().as_str();
         if self.is_ignored(&name) {
             return Ok(());
         }
-        let (no_mangle, docs) = parse_attr(&item.attrs, check_no_mangle, |attr| {
+
+        let (no_mangle, docs) = parse_attr(&item.attrs[..], check_no_mangle, |attr| {
             retrieve_docstring(attr, "")
         });
         // If it's not #[no_mangle] then it can't be called from C.
@@ -154,25 +153,23 @@ impl common::Lang for LangJava {
             return Ok(());
         }
 
-        let name = item.ident.name.as_str();
-
-        if let ast::ItemKind::Fn(ref fn_decl, _, _, abi, ref generics, _) = item.node {
-            if !common::is_extern(abi) {
+        if let syn::Item::Fn(ref func) = item {
+            if !common::is_extern(unwrap!(func.abi)) {
                 // If it doesn't have a C ABI it can't be called from C.
                 return Ok(());
             }
 
-            if generics.is_parameterized() {
+            if !func.decl.generics.params.is_empty() {
                 return Err(Error {
                     level: Level::Error,
-                    span: Some(item.span),
+                    span: None, //NONE FOR NOW
                     message: "cheddar can not handle parameterized extern functions".into(),
                 });
             }
 
             transform_native_fn(
-                &*fn_decl,
-                &item.attrs,
+                *func.decl,
+                &item.attrs[..],
                 &docs,
                 &format!("{}", name),
                 outputs,
@@ -183,7 +180,7 @@ impl common::Lang for LangJava {
         } else {
             Err(Error {
                 level: Level::Bug,
-                span: Some(item.span),
+                span: None, // NONE FOR NOW
                 message: "`parse_fn` called on wrong `Item_`".into(),
             })
         }
@@ -192,11 +189,11 @@ impl common::Lang for LangJava {
     /// Convert a Rust struct into a Java class.
     fn parse_struct(
         &mut self,
-        item: &ast::Item,
+        item: &syn::ItemStruct,
         _module: &[String],
         outputs: &mut Outputs,
     ) -> Result<(), Error> {
-        let name = item.ident.name.as_str();
+        let name = item.ident.to_string().as_str();
         if self.is_ignored(&name) {
             return Ok(());
         }
@@ -212,12 +209,12 @@ impl common::Lang for LangJava {
         buffer.push_str(&format!("package {};\n\n", self.context.namespace));
         buffer.push_str(&docs);
 
-        let orig_name = item.ident.name.as_str();
+        let orig_name = item.ident.to_owned().to_string().as_str();
         let name = struct_to_java_classname(&*orig_name);
         buffer.push_str(&format!("public class {}", name));
 
-        if let ast::ItemKind::Struct(ref variants, ref generics) = item.node {
-            if generics.is_parameterized() {
+        if let syn::Item::Struct(ref item) = item {
+            if !item.generics.params.is_empty() {
                 return Err(Error {
                     level: Level::Error,
                     span: Some(item.span),
@@ -225,8 +222,8 @@ impl common::Lang for LangJava {
                 });
             }
 
-            if variants.is_struct() {
-                let struct_fields = transform_struct_fields(variants.fields());
+            if let syn::Item::Struct(ref item) = item {
+                let struct_fields = transform_struct_fields(item.fields[..]);
                 let fields = transform_struct_into_class_fields(&struct_fields, &self.context)?;
 
                 buffer.push_str(" {\n");
@@ -247,8 +244,6 @@ impl common::Lang for LangJava {
 
                 let jni = jni::generate_struct(&struct_fields, &orig_name, &name, &self.context);
                 append_output(jni, "jni.rs", outputs);
-            } else if variants.is_tuple() && variants.fields().len() == 1 {
-                // #[repr(C)] pub struct Foo(Bar);  =>  typedef struct Foo Foo;
             } else {
                 return Err(Error {
                     level: Level::Error,
@@ -281,7 +276,7 @@ impl common::Lang for LangJava {
             None => {
                 return Err(Error {
                     level: Level::Error,
-                    span: None,
+                    span: None, //NONE FOR NOW
                     message: "no jni bindings generated?".to_owned(),
                 });
             }
@@ -294,7 +289,7 @@ impl common::Lang for LangJava {
             }
             None => Err(Error {
                 level: Level::Error,
-                span: None,
+                span: None, //NONE FOR NOW
                 message: "no native bindings generated?".to_owned(),
             }),
         }
@@ -425,8 +420,8 @@ fn generate_parametrised_constructor(
 
 /// Transform a Rust FFI function into a Java native function
 pub fn transform_native_fn(
-    fn_decl: &ast::FnDecl,
-    attrs: &[ast::Attribute],
+    fn_decl: syn::FnDecl,
+    attrs: &[syn::Attribute],
     docs: &str,
     name: &str,
     outputs: &mut Outputs,
@@ -437,16 +432,17 @@ pub fn transform_native_fn(
     let mut fn_args = fn_decl
         .inputs
         .iter()
-        .filter(|arg| !is_user_data_arg(arg))
+        .filter(|arg| !is_user_data_arg(*transform_fnarg_to_argcap(*arg)))
         .peekable();
 
     while let Some(arg) = fn_args.next() {
-        let arg_name = pprust::pat_to_string(&*arg.pat);
+        let pat: syn::PatIdent = arg.pat.into();
+        let arg_name = pat.ident.to_string().as_str();
 
         // Generate function arguments
         let mut java_type = rust_to_java(&arg.ty, context)?;
 
-        if is_array_arg(arg, fn_args.peek().cloned()) {
+        if is_array_arg(transform_fnarg_to_argcap(arg), *fn_args.peek().cloned()) {
             // Skip the length args - e.g. for a case of `ptr: *const u8, ptr_len: usize`
             // we're going to skip the `len` part.
             java_type = JavaType::Array(Box::new(java_type));
@@ -457,14 +453,14 @@ pub fn transform_native_fn(
         args_str.push(format!("{} {}", java_type, arg_name.to_camel_case()));
 
         // Generate a callback class - if it wasn't generated already
-        if let ast::TyKind::BareFn(ref bare_fn) = arg.ty.node {
-            let cb_class = callback_name(&*bare_fn.decl.inputs, context)?;
+        if let syn::Type::BareFn(ref bare_fn) = arg.ty {
+            let cb_class = callback_name(&*bare_fn.inputs, context)?;
             let cb_file = format!("{}.java", cb_class);
 
             if outputs.get(&cb_file).is_none() {
                 eprintln!("Generating CB {}", cb_class);
 
-                let cb_output = transform_callback(&*arg.ty, &cb_class, context)?;
+                let cb_output = transform_callback(&*bare_fn, &cb_class, context)?;
                 let _ = outputs.insert(cb_file, cb_output);
 
                 // Generate JNI callback fn
@@ -490,7 +486,7 @@ pub fn transform_native_fn(
             });
         }
         ast::FunctionRetTy::Default(..) => String::from("public static native void"),
-        ast::FunctionRetTy::Ty(ref ty) => java_type_to_str(&rust_to_java(&*ty, context)?)?,
+        ast::FunctionRetTy::Ty(ref ty) => java_type_to_str(&rust_to_java(&*ty.unwrap(), context)?)?,
     };
 
     let java_name = name.to_camel_case();
@@ -548,12 +544,12 @@ pub fn transform_native_fn(
 
 /// Turn a Rust callback function type into a Java interface.
 pub fn transform_callback<S: AsRef<str>>(
-    ty: &ast::Ty,
+    ty: &syn::TypeBareFn,
     class_name: S,
     context: &Context,
 ) -> Result<String, Error> {
-    match ty.node {
-        ast::TyKind::BareFn(ref bare_fn) => Ok(format!(
+    match ty {
+        syn::Type::BareFn(ref bare_fn) => Ok(format!(
             "package {namespace};\n\n\
              public interface {name} {{\n\
              \tpublic void call({types});\n}}\n",
@@ -572,13 +568,13 @@ pub fn transform_callback<S: AsRef<str>>(
 
 /// Transform a Rust FFI callback into Java function signature
 fn callback_to_java(
-    fn_ty: &ast::BareFnTy,
+    fn_ty: &syn::TypeBareFn,
     fn_span: codemap::Span,
     context: &Context,
 ) -> Result<String, Error> {
-    match fn_ty.abi {
+    match fn_ty.abi.unwrap().name.unwrap().value().as_str() {
         // If it doesn't have a C ABI it can't be called from C.
-        Abi::C | Abi::Cdecl | Abi::Stdcall | Abi::Fastcall | Abi::System => {}
+        "C" | "Cdecl" | "Stdcall" | "Fastcall" | "System" => {}
         _ => {
             return Err(Error {
                 level: Level::Error,
@@ -588,7 +584,7 @@ fn callback_to_java(
         }
     }
 
-    if !fn_ty.lifetimes.is_empty() {
+    if !fn_ty.lifetimes.unwrap().lifetimes.is_empty() {
         return Err(Error {
             level: Level::Error,
             span: Some(fn_span),
@@ -596,20 +592,20 @@ fn callback_to_java(
         });
     }
 
-    let fn_decl: &ast::FnDecl = &*fn_ty.decl;
+
     let mut args = Vec::new();
 
-    let mut args_iter = fn_decl
+    let mut args_iter = fn_ty
         .inputs
         .iter()
-        .filter(|arg| !is_user_data_arg(arg))
+        .filter(|arg| !is_user_data_arg_barefn(arg))
         .peekable();
 
     while let Some(arg) = args_iter.next() {
         let arg_name = pprust::pat_to_string(&*arg.pat);
         let mut java_type = rust_to_java(&*arg.ty, context)?;
 
-        if is_array_arg(arg, args_iter.peek().cloned()) {
+        if is_array_arg_barefn(arg, args_iter.peek().cloned()) {
             // Detect array ptrs: skip the length args and add array to the type sig
             java_type = JavaType::Array(Box::new(java_type));
             args_iter.next();
@@ -625,9 +621,9 @@ fn callback_to_java(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::syntax::ast::{Arg, ItemKind};
-    use crate::syntax::codemap::FilePathMapping;
-    use crate::syntax::parse::{self, ParseSess};
+    use syntax::ast::{Arg, ItemKind};
+    use syntax::codemap::FilePathMapping;
+    use syntax::parse::{self, ParseSess};
 
     #[test]
     fn cb_names() {

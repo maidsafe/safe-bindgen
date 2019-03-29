@@ -1,14 +1,14 @@
 //! Functions to generate JNI bindings
-
 use super::types::{callback_name, rust_ty_to_java};
 use super::{Context, Outputs};
-use crate::common::{append_output, is_array_arg, is_user_data_arg};
-use crate::quote;
-use crate::struct_field::StructField;
-use crate::syntax::ast;
-use crate::syntax::print::pprust;
+use common::{append_output, is_array_arg, is_user_data_arg, is_user_data_arg_barefn, is_array_arg_barefn};
 use inflector::Inflector;
 use jni::signature::{self, JavaType, Primitive, TypeSignature};
+use quote::*;
+use struct_field::StructField;
+use syntax::ast;
+use syntax::print::pprust;
+use std::convert::TryInto;
 
 fn to_jni_arg(arg: &ast::Arg, ty_name: &str) -> quote::Tokens {
     let pat = quote::Ident::new(pprust::pat_to_string(&*arg.pat));
@@ -328,11 +328,15 @@ pub fn generate_jni_function(
 }
 
 /// Transform `ast::Arg` into an (identifier, type) tuple
-fn transform_arg(arg: &ast::Arg) -> (quote::Ident, quote::Ident) {
-    (
-        quote::Ident::new(pprust::pat_to_string(&*arg.pat)),
-        quote::Ident::new(pprust::ty_to_string(&*arg.ty)),
-    )
+fn transform_arg(arg: &syn::BareFnArg) -> (quote::Ident, quote::Ident) {
+    let mut vector  = vec![];
+    for vec in arg.to_owned().into_token_stream().to_string().split(":") {
+        vector.push(format!("{}",&vec));
+    }
+        (
+            quote::Ident::new(arg.name.unwrap().to_owned().to_string()),
+            quote::Ident::new(vector.last()),
+        )
 }
 
 struct JniCallback {
@@ -346,15 +350,15 @@ struct JniCallback {
     arg_ty_str: String,
 }
 
-fn generate_callback(cb: &ast::BareFnTy, context: &Context) -> JniCallback {
+fn generate_callback(cb: &syn::TypeBareFn, context: &Context) -> JniCallback {
     let mut args: Vec<quote::Tokens> = Vec::new();
     let mut stmts: Vec<quote::Tokens> = Vec::new();
     let mut jni_cb_inputs = Vec::new();
     let mut arg_java_ty = Vec::new();
 
-    let mut args_iter = (*cb.decl.inputs)
+    let mut args_iter = *cb.inputs
         .iter()
-        .filter(|arg| !is_user_data_arg(arg))
+        .filter(|arg| !is_user_data_arg_barefn(*arg))
         .peekable();
 
     while let Some(arg) = args_iter.next() {
@@ -363,7 +367,7 @@ fn generate_callback(cb: &ast::BareFnTy, context: &Context) -> JniCallback {
         jni_cb_inputs.push(quote! { #arg_name: #arg_ty });
         args.push(quote! { #arg_name.into() });
 
-        if is_array_arg(arg, args_iter.peek().cloned()) {
+        if is_array_arg_barefn(arg, args_iter.peek().cloned()) {
             // Handle array arguments
             let val_java_type = unwrap!(rust_ty_to_signature(&arg.ty, context));
             arg_java_ty.push(JavaType::Array(Box::new(val_java_type)));
@@ -381,18 +385,18 @@ fn generate_callback(cb: &ast::BareFnTy, context: &Context) -> JniCallback {
                 // error: no length arg?
             }
         } else {
-            let stmt = match arg.ty.node {
+            let stmt = match arg.ty {
                 // Pointers
-                ast::TyKind::Ptr(ref ptr) => {
-                    match pprust::ty_to_string(&ptr.ty).as_str() {
+                syn::Type::Ptr(ref ptr) => {
+                    match ptr.into_token_stream().to_string().as_str() {
                         // Opaque ptrs passed as long values
-                        "App" | "Authenticator" => {
+                        "* mut App" | "* mut Authenticator" | "* const App" | "* const Authenticator" => {
                             quote! {
                                 let #arg_name = #arg_name as jlong;
                             }
                         }
                         // Strings
-                        "c_char" => {
+                        "* mut c_char" | "* const c_char" => {
                             quote! {
                                 let #arg_name: JObject = if #arg_name.is_null() {
                                     JObject::null()
@@ -484,7 +488,7 @@ fn generate_multi_jni_callback(
 }
 
 /// Generates a JNI callback function based on a native callback type
-pub fn generate_jni_callback(cb: &ast::BareFnTy, cb_name: &str, context: &mut Context) -> String {
+pub fn generate_jni_callback(cb: &syn::TypeBareFn, cb_name: &str, context: &mut Context) -> String {
     let cb_name = quote::Ident::new(cb_name);
 
     let JniCallback {

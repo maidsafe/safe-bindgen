@@ -1,12 +1,14 @@
 //! Functions for converting Rust types to Java types.
 
-use crate::common::{is_array_arg, is_result_arg, is_user_data_arg};
-use crate::java::Context;
-use crate::syntax::abi::Abi;
-use crate::syntax::print::pprust;
-use crate::syntax::{ast, codemap};
-use crate::{Error, Level};
+use common::{is_array_arg, is_result_arg, is_user_data_arg, transform_fnarg_to_argcap};
+use java::Context;
 use jni::signature::{JavaType, Primitive};
+use syntax::abi::Abi;
+use syntax::print::pprust;
+use syntax::{ast, codemap};
+use {Error, Level};
+use syn::export::ToTokens;
+use std::ops::Deref;
 
 fn primitive_type_to_str(ty: Primitive) -> &'static str {
     match ty {
@@ -50,16 +52,16 @@ pub fn struct_to_java_classname<S: AsRef<str>>(s: S) -> String {
 }
 
 /// Get the Java interface name for the callback based on its types
-pub fn callback_name(inputs: &[ast::Arg], context: &Context) -> Result<String, Error> {
+pub fn callback_name(inputs: &[syn::BareFnArg], context: &Context) -> Result<String, Error> {
     let mut components = Vec::new();
     let mut inputs = inputs.iter().peekable();
 
-    while let Some(arg) = inputs.next() {
-        if is_user_data_arg(arg) {
+    while let Some(&arg) = inputs.next() {
+        if is_user_data_arg(**(transform_fnarg_to_argcap(&arg).clone())) {
             // Skip user_data args
             continue;
         }
-        if is_result_arg(arg) {
+        if is_result_arg(transform_fnarg_to_argcap(&arg)) {
             // Make sure that a CB taking a single "result: *const FfiResult" param
             // won't end up being called "CallbackVoid" (but "CallbackResult" instead)
             components.push(From::from("Result"));
@@ -69,7 +71,16 @@ pub fn callback_name(inputs: &[ast::Arg], context: &Context) -> Result<String, E
         let arg_type = &rust_ty_to_java_class_name(&*arg.ty, context)?;
         let mut arg_type = struct_to_java_classname(arg_type);
 
-        if is_array_arg(arg, inputs.peek().cloned()) {
+        if is_array_arg(
+            transform_fnarg_to_argcap(&arg),
+            inputs
+                .to_owned()
+                .into_iter()
+                .map(|arg| transform_fnarg_to_argcap(arg))
+                .peekable()
+                .peek()
+                .cloned(),
+        ) {
             inputs.next();
             arg_type.push_str("ArrayLen");
         }
@@ -86,41 +97,41 @@ pub fn callback_name(inputs: &[ast::Arg], context: &Context) -> Result<String, E
 
 /// Converts a callback function argument into a Java interface name
 fn callback_arg_to_java(
-    fn_ty: &ast::BareFnTy,
-    fn_span: codemap::Span,
+    fn_ty: &syn::TypeBareFn,
+    //fn_span: codemap::Span,
     context: &Context,
 ) -> Result<JavaType, Error> {
-    match fn_ty.abi {
+    match fn_ty.abi.to_owned().unwrap().name.unwrap().value().as_str() {
         // If it doesn't have a C ABI it can't be called from C.
-        Abi::C | Abi::Cdecl | Abi::Stdcall | Abi::Fastcall | Abi::System => {}
+        "C" | "Cdecl" | "Stdcall" | "Fastcall" | "System" => {}
         _ => {
             return Err(Error {
                 level: Level::Error,
-                span: Some(fn_span),
+                span: None, //NONE FOR NOW
                 message: "callbacks that don't have C ABI are not supported".into(),
             });
         }
     }
 
-    if !fn_ty.lifetimes.is_empty() {
+    if fn_ty.lifetimes.is_some() {
         return Err(Error {
             level: Level::Error,
-            span: Some(fn_span),
+            span: None, //NONE FOR NOW
             message: "can not handle lifetimes".into(),
         });
     }
 
     Ok(JavaType::Object(callback_name(
-        &*fn_ty.decl.inputs,
+        &*fn_ty.inputs,
         context,
     )?))
 }
 
 /// Turn a Rust type with an associated name or type into a C type.
-pub fn rust_to_java(ty: &ast::Ty, context: &Context) -> Result<JavaType, Error> {
-    match ty.node {
+pub fn rust_to_java(ty: &syn::Type, context: &Context) -> Result<JavaType, Error> {
+    match ty {
         // This is a callback ref taken as a function argument
-        ast::TyKind::BareFn(ref bare_fn) => callback_arg_to_java(bare_fn, ty.span, context),
+        syn::Type::BareFn(ref bare_fn) => callback_arg_to_java(bare_fn, context),
 
         // All other types just have a name associated with them.
         _ => anon_rust_to_java(ty, context, true),
@@ -130,14 +141,14 @@ pub fn rust_to_java(ty: &ast::Ty, context: &Context) -> Result<JavaType, Error> 
 /// Turn a Rust type into a part of the Java class name.
 /// Handles the size types in a special way because Rust has to distinguish
 /// between usize and u64, that's required for JNI bindings to work properly.
-fn rust_ty_to_java_class_name(ty: &ast::Ty, context: &Context) -> Result<String, Error> {
-    match ty.node {
-        ast::TyKind::Path(None, ref path) => {
-            let primitive_type: &str = &path.segments[0].identifier.name.as_str();
+fn rust_ty_to_java_class_name(ty: &syn::Type, context: &Context) -> Result<String, Error> {
+    match ty {
+        syn::Type::Path(ref path) => {
+            let primitive_type: &str = &path.path.segments[0].ident.to_string().as_str();
             if primitive_type == "usize" || primitive_type == "isize" {
                 Ok(From::from("size"))
             } else {
-                java_type_to_str(&path_to_java(path, context, false)?)
+                java_type_to_str(&path_to_java(&path.path, context, false)?)
             }
         }
         _ => java_type_to_str(&anon_rust_to_java(ty, context, false)?),
@@ -146,42 +157,42 @@ fn rust_ty_to_java_class_name(ty: &ast::Ty, context: &Context) -> Result<String,
 
 /// Turn a Rust type into a Java type signature.
 fn anon_rust_to_java(
-    ty: &ast::Ty,
+    ty: &syn::Type,
     context: &Context,
     use_type_map: bool,
 ) -> Result<JavaType, Error> {
-    match ty.node {
+    match ty {
         // Function pointers should not be in this function.
-        ast::TyKind::BareFn(..) => Err(Error {
+        syn::Type::BareFn(..) => Err(Error {
             level: Level::Error,
-            span: Some(ty.span),
+            span: None, //NONE FOR NOW
             message: "C function pointers must have a name or function declaration \
                       associated with them"
                 .into(),
         }),
 
         // Standard pointers.
-        ast::TyKind::Ptr(ref ptr) => {
-            let ty_str = pprust::ty_to_string(&ptr.ty);
+        syn::Type::Ptr(ref ptr) => {
+            let ty_str = ptr.elem.deref().into_token_stream().to_string().as_str();
             // Detect strings, which are *const c_char or *mut c_char
             if ty_str == "c_char" {
                 return Ok(JavaType::Object("String".into()));
             }
-            anon_rust_to_java(&ptr.ty, context, use_type_map)
+            anon_rust_to_java(&*ptr.elem, context, use_type_map)
         }
 
         // Plain old types.
-        ast::TyKind::Path(None, ref path) => path_to_java(path, context, use_type_map),
+        syn::Type::Path(ref path) => path_to_java(&path.path, context, use_type_map),
 
         // Possibly void, likely not.
         _ => {
-            let new_type = pprust::ty_to_string(ty);
+            let new_type = ty.to_owned().into_token_stream().to_string();
             if new_type == "()" {
                 Ok(JavaType::Primitive(Primitive::Void))
             } else {
                 Err(Error {
                     level: Level::Error,
-                    span: Some(ty.span),
+                    span: None, //NONE FOR NOW
                     message: format!("unknown type `{}`", new_type),
                 })
             }
@@ -194,42 +205,40 @@ fn anon_rust_to_java(
 /// Types hidden behind modules are almost certainly custom types (which wouldn't work) except
 /// types in `libc` which we special case.
 fn path_to_java(
-    path: &ast::Path,
+    path: &syn::Path,
     context: &Context,
     use_type_map: bool,
 ) -> Result<JavaType, Error> {
     if path.segments.is_empty() {
         return Err(Error {
             level: Level::Bug,
-            span: Some(path.span),
+            span: None, //NONE FOR NOW
             message: "invalid type".into(),
         });
     }
 
     // Types in modules, `my_mod::MyType`.
     if path.segments.len() > 1 {
-        let (ty, module) = path
-            .segments
-            .split_last()
-            .expect("already checked that there were at least two elements");
-        let ty: &str = &ty.identifier.name.as_str();
-        let mut segments = Vec::with_capacity(module.len());
-        for segment in module {
-            segments.push(String::from(&*segment.identifier.name.as_str()));
+        let ty = path.segments.last().unwrap().into_value();
+        //.expect("already checked that there were at least two elements");
+        let ty: &str = &ty.ident.to_owned().to_string().as_str();
+        let mut module = Vec::new();
+        for segment in path.segments.iter() {
+            module.push(segment);
         }
-        let module = segments.join("::");
-        match &*module {
+        let module = module.join("::");
+        match &*module.as_str() {
             "std::os::raw" | "libc" => {
                 Ok(rust_ty_to_java(ty).unwrap_or_else(|| JavaType::Object(ty.to_string())))
             }
             _ => Err(Error {
                 level: Level::Error,
-                span: Some(path.span),
+                span: None, //NONE FOR NOW
                 message: "can't convert type".into(),
             }),
         }
     } else {
-        let ty: &str = &path.segments[0].identifier.name.as_str();
+        let ty: &str = path.segments[0].ident.to_owned().to_string().as_str();
         let mapped = rust_ty_to_java(ty).unwrap_or_else(|| {
             if !use_type_map {
                 // Unknown type - most likely it's a structure, so convert it into an object
@@ -271,10 +280,10 @@ pub fn rust_ty_to_java(ty: &str) -> Option<JavaType> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::syntax::ast::*;
-    use crate::syntax::codemap::DUMMY_SP;
-    use crate::syntax::ptr::P;
     use jni::signature::{JavaType, Primitive};
+    use syntax::ast::*;
+    use syntax::codemap::DUMMY_SP;
+    use syntax::ptr::P;
 
     #[test]
     fn test_rust_to_java() {
