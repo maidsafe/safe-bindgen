@@ -44,6 +44,7 @@ rustfmt = "~0.10.0"
 petgraph = "~0.4.13"
 unwrap = "~1.2.0"
 syn = {version = "0.15.26", features = ["parsing","full","derive","proc-macro","extra-traits"]}
+proc-macro2 = "~0.4.27"
 
 [dev-dependencies]
 colored = "~1.6.0"

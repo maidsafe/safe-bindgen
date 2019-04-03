@@ -1,6 +1,6 @@
 //! Functions for converting Rust types to Java types.
 
-use common::{is_array_arg, is_result_arg, is_user_data_arg, transform_fnarg_to_argcap};
+use common::{is_array_arg, is_result_arg, is_user_data_arg, transform_fnarg_to_argcap, is_array_arg_barefn, is_result_arg_barefn, is_user_data_arg_barefn};
 use java::Context;
 use jni::signature::{JavaType, Primitive};
 use syntax::abi::Abi;
@@ -9,6 +9,7 @@ use syntax::{ast, codemap};
 use {Error, Level};
 use syn::export::ToTokens;
 use std::ops::Deref;
+use syn::punctuated::Iter;
 
 fn primitive_type_to_str(ty: Primitive) -> &'static str {
     match ty {
@@ -52,31 +53,29 @@ pub fn struct_to_java_classname<S: AsRef<str>>(s: S) -> String {
 }
 
 /// Get the Java interface name for the callback based on its types
-pub fn callback_name(inputs: &[syn::BareFnArg], context: &Context) -> Result<String, Error> {
+pub fn callback_name(inputs: &Iter<syn::BareFnArg>, context: &Context) -> Result<String, Error> {
     let mut components = Vec::new();
-    let mut inputs = inputs.iter().peekable();
+    let mut inputs = inputs.peekable();
 
     while let Some(&arg) = inputs.next() {
-        if is_user_data_arg(**(transform_fnarg_to_argcap(&arg).clone())) {
+        if is_user_data_arg_barefn(&arg.clone()) {
             // Skip user_data args
             continue;
         }
-        if is_result_arg(transform_fnarg_to_argcap(&arg)) {
+        if is_result_arg_barefn(&arg) {
             // Make sure that a CB taking a single "result: *const FfiResult" param
             // won't end up being called "CallbackVoid" (but "CallbackResult" instead)
             components.push(From::from("Result"));
             continue;
         }
 
-        let arg_type = &rust_ty_to_java_class_name(&*arg.ty, context)?;
+        let arg_type = &rust_ty_to_java_class_name(&arg.ty, context)?;
         let mut arg_type = struct_to_java_classname(arg_type);
 
-        if is_array_arg(
-            transform_fnarg_to_argcap(&arg),
+        if is_array_arg_barefn(
+            &arg,
             inputs
-                .to_owned()
                 .into_iter()
-                .map(|arg| transform_fnarg_to_argcap(arg))
                 .peekable()
                 .peek()
                 .cloned(),
@@ -122,7 +121,7 @@ fn callback_arg_to_java(
     }
 
     Ok(JavaType::Object(callback_name(
-        &*fn_ty.inputs,
+        &fn_ty.inputs.iter(),
         context,
     )?))
 }
@@ -222,12 +221,12 @@ fn path_to_java(
         let ty = path.segments.last().unwrap().into_value();
         //.expect("already checked that there were at least two elements");
         let ty: &str = &ty.ident.to_owned().to_string().as_str();
-        let mut module = Vec::new();
+        let mut module = String::new();
+        module.to_owned();
         for segment in path.segments.iter() {
-            module.push(segment);
+            module.push_str(segment.ident.to_string().as_str());
         }
-        let module = module.join("::");
-        match &*module.as_str() {
+        match &*module.into_boxed_str() {
             "std::os::raw" | "libc" => {
                 Ok(rust_ty_to_java(ty).unwrap_or_else(|| JavaType::Object(ty.to_string())))
             }

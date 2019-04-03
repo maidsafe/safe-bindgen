@@ -99,6 +99,14 @@ pub fn transform_fnarg_to_argcap(fnarg: &syn::FnArg) -> &syn::ArgCaptured {
     argcap
 }
 
+pub fn take_out_pat(argcappat: &syn::Pat) -> &syn::PatIdent{
+    let mut pat: &syn::PatIdent;
+    if let syn::pat::PatIdent(ref pat1) = argcapat {
+        pat = pat1;
+        }
+    pat
+}
+
 /// Check the function argument is `user_data: *mut c_void`
 pub fn is_user_data_arg(arg: syn::ArgCaptured) -> bool {
     let mut flags = (0, 0);
@@ -121,7 +129,7 @@ pub fn is_user_data_arg(arg: syn::ArgCaptured) -> bool {
 
 pub fn is_user_data_arg_barefn(arg: &syn::BareFnArg) -> bool {
     let mut flags = (0, 0);
-    if arg.name.unwrap().to_owned().to_string().as_str() == "user_data" {
+    if arg.name.unwrap().0.to_owned().to_string().as_str() == "user_data" {
         flags.0 = 1;
     }
     if let syn::Type::Ptr(ref pat) = arg.ty {
@@ -160,6 +168,20 @@ pub fn is_result_arg(arg: &syn::ArgCaptured) -> bool {
     }
 }
 
+
+pub fn is_result_arg_barefn(arg: &syn::BareFnArg) -> bool {
+    let mut vector = vec![];
+    for vec in arg.to_owned().into_token_stream().to_string().split(":") {
+        vector.push(format!("{}",&vec));
+    }
+    if vector.first().unwrap().as_str() == "result " && vector.last().unwrap().as_str() == "*const FfiResult" {
+        return true
+    }
+    else {
+        return false
+    }
+}
+
 /// Check the function argument is a length argument for a *const u8 pointer
 pub fn is_ptr_len_arg(ty: &syn::Type, arg_name: &str) -> bool {
     &*ty.to_owned().into_token_stream().to_string().as_str() == "usize"
@@ -178,7 +200,7 @@ pub fn is_array_arg(arg: &syn::ArgCaptured, next_arg: Option<&syn::ArgCaptured>)
             && next_arg
                 .map(|arg| {
                     is_ptr_len_arg(
-                        &*arg.ty,
+                        &arg.ty,
                         name
                     )
                 })
@@ -190,14 +212,14 @@ pub fn is_array_arg(arg: &syn::ArgCaptured, next_arg: Option<&syn::ArgCaptured>)
 
 pub fn is_array_arg_barefn(arg: &syn::BareFnArg, next_arg: Option<&syn::BareFnArg>) -> bool {
 
-    let name = arg.name.unwrap().to_string().as_str();
+    let name = arg.name.unwrap().0.into_token_stream().to_string().as_str();
 
     if let syn::Type::Ptr(ref typeptr) = arg.ty {
         !is_result_arg_barefn(&arg)
             && next_arg
             .map(|arg| {
                 is_ptr_len_arg(
-                    &*arg.ty,
+                    &arg.ty,
                     name
                 )
             })

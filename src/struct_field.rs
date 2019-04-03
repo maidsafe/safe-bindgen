@@ -1,6 +1,6 @@
+use core::borrow::{Borrow, BorrowMut};
 use std::collections::BTreeSet;
 use syn::export::ToTokens;
-use core::borrow::Borrow;
 
 #[derive(Debug)]
 pub enum StructField {
@@ -41,9 +41,9 @@ pub fn transform_struct_fields(fields: &[syn::Field]) -> Vec<StructField> {
         .map(|f| f.ident.unwrap().to_string())
         .collect();
 
-    for f in fields {
+    for f in fields.iter() {
         let mut field_name: String = f.ident.unwrap().to_string();
-
+        let f = *f;
         match f.ty {
             // Pointers
             syn::Type::Ptr(ref ptr) => {
@@ -56,7 +56,7 @@ pub fn transform_struct_fields(fields: &[syn::Field]) -> Vec<StructField> {
 
                 if field_names.contains(&len_field) {
                     results.push(StructField::Array {
-                        field: *f,
+                        field: f,
                         len_field,
                         cap_field: if field_names.contains(&cap_field) {
                             Some(cap_field)
@@ -68,28 +68,25 @@ pub fn transform_struct_fields(fields: &[syn::Field]) -> Vec<StructField> {
                     match ptr.into_token_stream().to_string().as_str() {
                         // Strings
                         "c_char" => {
-                            results.push(StructField::String(*f));
+                            results.push(StructField::String(f));
                         }
                         // Other ptrs, most likely structs
                         _ => {
-                            results.push(StructField::StructPtr {
-                                field: *f,
-                                ty: *ptr,
-                            });
+                            results.push(StructField::StructPtr { field: f, ty: *ptr });
                         }
                     }
                 }
             }
 
             syn::Type::Path(ref _path) => {
-                results.push(if is_array_meta_field(f) {
-                    StructField::LenField(f.clone())
+                results.push(if is_array_meta_field(&f) {
+                    StructField::LenField(f)
                 } else {
-                    StructField::Primitive(f.clone())
+                    StructField::Primitive(f)
                 });
             }
 
-            _ => results.push(StructField::Primitive(f.clone())),
+            _ => results.push(StructField::Primitive(f.into())),
         }
     }
 
