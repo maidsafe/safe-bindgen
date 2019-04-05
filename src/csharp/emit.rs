@@ -16,7 +16,7 @@ macro_rules! emit {
 }
 macro_rules! emitln {
     ($writer:expr, $($arg:tt)*) => {
-        writeln!($writer, $($arg)*).unwrap()
+        unwrap!(writeln!($writer, $($arg)*))
     }
 }
 

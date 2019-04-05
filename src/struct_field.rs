@@ -1,5 +1,6 @@
 use core::borrow::{Borrow, BorrowMut};
 use std::collections::BTreeSet;
+use std::ops::Deref;
 use syn::export::ToTokens;
 
 #[derive(Debug)]
@@ -29,8 +30,8 @@ impl StructField {
         }
     }
 
-    pub fn name(&self) -> &str {
-        self.struct_field().ident.unwrap().to_string().as_str()
+    pub fn name(&self) -> String {
+        unwrap!(self.struct_field().ident.to_owned()).to_string()
     }
 }
 
@@ -38,12 +39,12 @@ pub fn transform_struct_fields(fields: &[syn::Field]) -> Vec<StructField> {
     let mut results = Vec::new();
     let field_names: BTreeSet<_> = fields
         .iter()
-        .map(|f| f.ident.unwrap().to_string())
+        .map(|f| unwrap!(f.ident.to_owned()).to_string())
         .collect();
 
     for f in fields.iter() {
-        let mut field_name: String = f.ident.unwrap().to_string();
-        let f = *f;
+        let mut field_name: String = unwrap!(f.ident.to_owned()).to_string();
+        let f = f.to_owned();
         match f.ty {
             // Pointers
             syn::Type::Ptr(ref ptr) => {
@@ -56,7 +57,7 @@ pub fn transform_struct_fields(fields: &[syn::Field]) -> Vec<StructField> {
 
                 if field_names.contains(&len_field) {
                     results.push(StructField::Array {
-                        field: f,
+                        field: f.clone(),
                         len_field,
                         cap_field: if field_names.contains(&cap_field) {
                             Some(cap_field)
@@ -68,25 +69,28 @@ pub fn transform_struct_fields(fields: &[syn::Field]) -> Vec<StructField> {
                     match ptr.into_token_stream().to_string().as_str() {
                         // Strings
                         "c_char" => {
-                            results.push(StructField::String(f));
+                            results.push(StructField::String(f.clone()));
                         }
                         // Other ptrs, most likely structs
                         _ => {
-                            results.push(StructField::StructPtr { field: f, ty: *ptr });
+                            results.push(StructField::StructPtr {
+                                field: f.clone(),
+                                ty: ptr.clone(),
+                            });
                         }
                     }
                 }
             }
 
-            syn::Type::Path(ref _path) => {
+            syn::Type::Path(ref path) => {
                 results.push(if is_array_meta_field(&f) {
-                    StructField::LenField(f)
+                    StructField::LenField(f.clone())
                 } else {
-                    StructField::Primitive(f)
+                    StructField::Primitive(f.clone())
                 });
             }
 
-            _ => results.push(StructField::Primitive(f.into())),
+            _ => results.push(StructField::Primitive(f.clone())),
         }
     }
 
@@ -94,25 +98,16 @@ pub fn transform_struct_fields(fields: &[syn::Field]) -> Vec<StructField> {
 }
 
 fn is_array_meta_field(field: &syn::Field) -> bool {
-    let str_name = field
-        .ident
-        .unwrap()
+    let ident = unwrap!(field.to_owned().ident)
         .into_token_stream()
-        .to_string()
-        .as_str();
-    if let syn::Type::Path(ref path) = field.ty {
-        let ty = path
-            .path
-            .segments
-            .last()
-            .unwrap()
-            .value()
+        .to_string();
+    if let syn::Type::Path(ref typepath) = field.ty {
+        let ty = unwrap!(typepath.path.segments.last())
+            .into_value()
             .ident
-            .into_token_stream()
-            .to_string()
-            .as_str();
-
-        ty == "usize" && (str_name.ends_with("_len") || str_name.ends_with("_cap"))
+            .to_owned()
+            .to_string();
+        ty == "usize".to_string() && (ident.ends_with("_len") || ident.ends_with("_cap"))
     } else {
         false
     }

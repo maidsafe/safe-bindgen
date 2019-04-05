@@ -91,24 +91,24 @@ pub fn check_no_mangle(attr: &syn::Attribute) -> bool {
     }
 }
 
-pub fn transform_fnarg_to_argcap(fnarg: &syn::FnArg) -> &syn::ArgCaptured {
-    let mut argcap: &syn::ArgCaptured;
-    if let syn::FnArg::Captured(ref argcap1) = fnarg {
-        argcap = argcap1;
+pub fn transform_fnarg_to_argcap(fnarg: &syn::FnArg) -> Option<&syn::ArgCaptured> {
+    if let syn::FnArg::Captured(ref argcap) = fnarg {
+        return Some(argcap);
+    } else {
+        return None;
     }
-    argcap
 }
 
-pub fn take_out_pat(argcappat: &syn::Pat) -> &syn::PatIdent{
-    let mut pat: &syn::PatIdent;
-    if let syn::pat::PatIdent(ref pat1) = argcapat {
-        pat = pat1;
-        }
-    pat
+pub fn take_out_pat(argcappat: &syn::Pat) -> Option<&syn::PatIdent> {
+    if let syn::Pat::Ident(ref pat) = argcappat {
+        return Some(pat);
+    } else {
+        return None;
+    }
 }
 
 /// Check the function argument is `user_data: *mut c_void`
-pub fn is_user_data_arg(arg: syn::ArgCaptured) -> bool {
+pub fn is_user_data_arg(arg: &syn::ArgCaptured) -> bool {
     let mut flags = (0, 0);
     if let syn::Pat::Ident(ref pat) = arg.pat {
         if pat.to_owned().ident.to_string().as_str() == "user_data" {
@@ -129,7 +129,15 @@ pub fn is_user_data_arg(arg: syn::ArgCaptured) -> bool {
 
 pub fn is_user_data_arg_barefn(arg: &syn::BareFnArg) -> bool {
     let mut flags = (0, 0);
-    if arg.name.unwrap().0.to_owned().to_string().as_str() == "user_data" {
+    if unwrap!(arg.to_owned().name)
+        .0
+        .to_owned()
+        .into_token_stream()
+        .to_string()
+        .to_owned()
+        .as_str()
+        == "user_data"
+    {
         flags.0 = 1;
     }
     if let syn::Type::Ptr(ref pat) = arg.ty {
@@ -168,17 +176,17 @@ pub fn is_result_arg(arg: &syn::ArgCaptured) -> bool {
     }
 }
 
-
 pub fn is_result_arg_barefn(arg: &syn::BareFnArg) -> bool {
     let mut vector = vec![];
     for vec in arg.to_owned().into_token_stream().to_string().split(":") {
-        vector.push(format!("{}",&vec));
+        vector.push(format!("{}", &vec));
     }
-    if vector.first().unwrap().as_str() == "result " && vector.last().unwrap().as_str() == "*const FfiResult" {
-        return true
-    }
-    else {
-        return false
+    if unwrap!(vector.first()).as_str() == "result "
+        && unwrap!(vector.last()).as_str() == "*const FfiResult"
+    {
+        return true;
+    } else {
+        return false;
     }
 }
 
@@ -191,19 +199,12 @@ pub fn is_ptr_len_arg(ty: &syn::Type, arg_name: &str) -> bool {
 /// Detect array ptrs and skip the length args - e.g. for a case of
 /// `ptr: *const u8, ptr_len: usize` we're going to skip the `len` part.
 pub fn is_array_arg(arg: &syn::ArgCaptured, next_arg: Option<&syn::ArgCaptured>) -> bool {
-    let mut name: &str;
-    if let syn::Pat::Ident(ref pat) = arg.pat {
-        name = pat.ident.to_owned().to_string().as_str()
-    }
+    let pat = unwrap!(take_out_pat(&arg.pat));
+    let name = pat.ident.to_owned().into_token_stream().to_string();
     if let syn::Type::Ptr(ref typeptr) = arg.ty {
         !is_result_arg(&arg)
             && next_arg
-                .map(|arg| {
-                    is_ptr_len_arg(
-                        &arg.ty,
-                        name
-                    )
-                })
+                .map(|arg| is_ptr_len_arg(&arg.ty, name.as_str()))
                 .unwrap_or(false)
     } else {
         false
@@ -211,19 +212,16 @@ pub fn is_array_arg(arg: &syn::ArgCaptured, next_arg: Option<&syn::ArgCaptured>)
 }
 
 pub fn is_array_arg_barefn(arg: &syn::BareFnArg, next_arg: Option<&syn::BareFnArg>) -> bool {
-
-    let name = arg.name.unwrap().0.into_token_stream().to_string().as_str();
+    let name = unwrap!(arg.to_owned().name)
+        .0
+        .into_token_stream()
+        .to_string();
 
     if let syn::Type::Ptr(ref typeptr) = arg.ty {
         !is_result_arg_barefn(&arg)
             && next_arg
-            .map(|arg| {
-                is_ptr_len_arg(
-                    &arg.ty,
-                    name
-                )
-            })
-            .unwrap_or(false)
+                .map(|arg| is_ptr_len_arg(&arg.ty, name.as_str()))
+                .unwrap_or(false)
     } else {
         false
     }

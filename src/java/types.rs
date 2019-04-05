@@ -1,15 +1,19 @@
 //! Functions for converting Rust types to Java types.
 
-use common::{is_array_arg, is_result_arg, is_user_data_arg, transform_fnarg_to_argcap, is_array_arg_barefn, is_result_arg_barefn, is_user_data_arg_barefn};
+use common::{
+    is_array_arg, is_array_arg_barefn, is_result_arg, is_result_arg_barefn, is_user_data_arg,
+    is_user_data_arg_barefn, transform_fnarg_to_argcap,
+};
+use core::borrow::Borrow;
 use java::Context;
 use jni::signature::{JavaType, Primitive};
+use std::ops::Deref;
+use syn::export::ToTokens;
+use syn::punctuated::Iter;
 use syntax::abi::Abi;
 use syntax::print::pprust;
 use syntax::{ast, codemap};
 use {Error, Level};
-use syn::export::ToTokens;
-use std::ops::Deref;
-use syn::punctuated::Iter;
 
 fn primitive_type_to_str(ty: Primitive) -> &'static str {
     match ty {
@@ -53,11 +57,11 @@ pub fn struct_to_java_classname<S: AsRef<str>>(s: S) -> String {
 }
 
 /// Get the Java interface name for the callback based on its types
-pub fn callback_name(inputs: &Iter<syn::BareFnArg>, context: &Context) -> Result<String, Error> {
+pub fn callback_name(inputs: &[syn::BareFnArg], context: &Context) -> Result<String, Error> {
     let mut components = Vec::new();
-    let mut inputs = inputs.peekable();
+    let mut inputs = inputs.iter().peekable();
 
-    while let Some(&arg) = inputs.next() {
+    while let Some(&ref arg) = inputs.next() {
         if is_user_data_arg_barefn(&arg.clone()) {
             // Skip user_data args
             continue;
@@ -72,15 +76,8 @@ pub fn callback_name(inputs: &Iter<syn::BareFnArg>, context: &Context) -> Result
         let arg_type = &rust_ty_to_java_class_name(&arg.ty, context)?;
         let mut arg_type = struct_to_java_classname(arg_type);
 
-        if is_array_arg_barefn(
-            &arg,
-            inputs
-                .into_iter()
-                .peekable()
-                .peek()
-                .cloned(),
-        ) {
-            inputs.next();
+        if is_array_arg_barefn(&arg, inputs.peek().cloned()) {
+            &inputs.next();
             arg_type.push_str("ArrayLen");
         }
 
@@ -100,7 +97,7 @@ fn callback_arg_to_java(
     //fn_span: codemap::Span,
     context: &Context,
 ) -> Result<JavaType, Error> {
-    match fn_ty.abi.to_owned().unwrap().name.unwrap().value().as_str() {
+    match unwrap!(unwrap!(fn_ty.abi.to_owned()).name).value().as_str() {
         // If it doesn't have a C ABI it can't be called from C.
         "C" | "Cdecl" | "Stdcall" | "Fastcall" | "System" => {}
         _ => {
@@ -119,11 +116,11 @@ fn callback_arg_to_java(
             message: "can not handle lifetimes".into(),
         });
     }
-
-    Ok(JavaType::Object(callback_name(
-        &fn_ty.inputs.iter(),
-        context,
-    )?))
+    let mut vec = vec![];
+    for x in fn_ty.inputs.to_owned() {
+        vec.push(x);
+    }
+    Ok(JavaType::Object(callback_name(vec.as_slice(), context)?))
 }
 
 /// Turn a Rust type with an associated name or type into a C type.
@@ -143,8 +140,8 @@ pub fn rust_to_java(ty: &syn::Type, context: &Context) -> Result<JavaType, Error
 fn rust_ty_to_java_class_name(ty: &syn::Type, context: &Context) -> Result<String, Error> {
     match ty {
         syn::Type::Path(ref path) => {
-            let primitive_type: &str = &path.path.segments[0].ident.to_string().as_str();
-            if primitive_type == "usize" || primitive_type == "isize" {
+            let primitive_type: String = path.path.segments[0].ident.to_string();
+            if primitive_type.as_str() == "usize" || primitive_type == "isize" {
                 Ok(From::from("size"))
             } else {
                 java_type_to_str(&path_to_java(&path.path, context, false)?)
@@ -172,9 +169,15 @@ fn anon_rust_to_java(
 
         // Standard pointers.
         syn::Type::Ptr(ref ptr) => {
-            let ty_str = ptr.elem.deref().into_token_stream().to_string().as_str();
+            let ty_str = ptr
+                .to_owned()
+                .elem
+                .deref()
+                .to_owned()
+                .into_token_stream()
+                .to_string();
             // Detect strings, which are *const c_char or *mut c_char
-            if ty_str == "c_char" {
+            if ty_str.as_str() == "* const c_char" || ty_str.as_str() == "* mut c_char" {
                 return Ok(JavaType::Object("String".into()));
             }
             anon_rust_to_java(&*ptr.elem, context, use_type_map)
@@ -218,9 +221,9 @@ fn path_to_java(
 
     // Types in modules, `my_mod::MyType`.
     if path.segments.len() > 1 {
-        let ty = path.segments.last().unwrap().into_value();
+        let ty = unwrap!(path.segments.last()).into_value();
         //.expect("already checked that there were at least two elements");
-        let ty: &str = &ty.ident.to_owned().to_string().as_str();
+        let ty: String = ty.ident.to_owned().to_string();
         let mut module = String::new();
         module.to_owned();
         for segment in path.segments.iter() {
@@ -228,7 +231,7 @@ fn path_to_java(
         }
         match &*module.into_boxed_str() {
             "std::os::raw" | "libc" => {
-                Ok(rust_ty_to_java(ty).unwrap_or_else(|| JavaType::Object(ty.to_string())))
+                Ok(rust_ty_to_java(ty.as_str()).unwrap_or_else(|| JavaType::Object(ty)))
             }
             _ => Err(Error {
                 level: Level::Error,
@@ -237,13 +240,13 @@ fn path_to_java(
             }),
         }
     } else {
-        let ty: &str = path.segments[0].ident.to_owned().to_string().as_str();
-        let mapped = rust_ty_to_java(ty).unwrap_or_else(|| {
+        let ty: String = path.segments[0].ident.to_owned().to_string();
+        let mapped = rust_ty_to_java(ty.as_str()).unwrap_or_else(|| {
             if !use_type_map {
                 // Unknown type - most likely it's a structure, so convert it into an object
                 return JavaType::Object(struct_to_java_classname(ty));
             }
-            if let Some(mapping) = context.type_map.get(ty) {
+            if let Some(mapping) = context.type_map.get(ty.as_str()) {
                 (*mapping).clone()
             } else {
                 JavaType::Object(struct_to_java_classname(ty))

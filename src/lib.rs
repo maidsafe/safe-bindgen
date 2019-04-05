@@ -343,7 +343,7 @@ impl Bindgen {
             match &item {
                 syn::Item::Use(ref itemuse) => {
                     if parse::imported_mods(itemuse).is_some() {
-                        imported.push(parse::imported_mods(itemuse).unwrap());
+                        imported.push(unwrap!(parse::imported_mods(itemuse)));
                     }
                 }
                 // Parsing const in lib.rs for CSharp

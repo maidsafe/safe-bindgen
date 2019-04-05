@@ -227,7 +227,7 @@ pub fn transform_function(func: syn::FnDecl) -> Option<Function> {
 pub fn transform_function_param_from_type(fnarg: &syn::BareFnArg) -> Option<(String, Type)> {
     if let Some(ty) = transform_type(&fnarg.ty) {
         let mut name = String::new();
-        if let syn::BareFnArgName::Named(id) = fnarg.to_owned().name.unwrap().0 {
+        if let syn::BareFnArgName::Named(id) = unwrap!(fnarg.to_owned().name).0 {
             name.push_str(id.to_owned().to_string().as_str());
         }
         return Some((name.to_owned().to_string(), ty));
@@ -244,7 +244,7 @@ pub fn transform_function_param(fnarg: &syn::FnArg) -> Option<(String, Type)> {
             name.push_str(id.ident.to_owned().to_string().as_str());
         }
         if ty.is_some() {
-            return Some((name, ty.unwrap()));
+            return Some((name, unwrap!(ty)));
         } else {
             return None;
         }

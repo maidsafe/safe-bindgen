@@ -13,7 +13,6 @@ use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Display, Write};
 use std::mem;
-use std::ops::Deref;
 use Error;
 use Level;
 
@@ -441,7 +440,7 @@ impl Lang for LangCSharp {
             return Ok(());
         }
 
-        if !common::is_extern(item.to_owned().abi.unwrap()) {
+        if !common::is_extern(unwrap!(item.to_owned().abi)) {
             return Ok(());
         }
         //TODO: There are no generics in syn's ItemFn

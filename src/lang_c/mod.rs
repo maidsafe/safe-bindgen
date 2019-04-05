@@ -505,10 +505,7 @@ fn fn_ptr_to_c(fn_ty: &syn::TypeBareFn, inner: &str) -> Result<CType, Error> {
     } else {
         let mut args = vec![];
         for arg in fn_ty.inputs.to_owned() {
-            let mut arg_name1 = &arg
-                .name
-                .to_owned()
-                .unwrap()
+            let mut arg_name1 = &unwrap!(arg.name.to_owned())
                 .0
                 .into_token_stream()
                 .to_string();
