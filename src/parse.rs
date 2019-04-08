@@ -1,8 +1,8 @@
 //! Functions for actually parsing the source file.
 
+use super::LangJava;
 use common::{Lang, Outputs};
 use Error;
-use super::LangJava;
 
 pub fn parse_usetree(usetree: &syn::UseTree) -> Vec<String> {
     let mut modules = Vec::new();
@@ -212,7 +212,7 @@ pub fn parse_mod<L: Lang>(
 
             // Dispatch to correct method.
             let res = match item {
-                syn::Item::Mod(ref item) =>  {
+                syn::Item::Mod(ref item) => {
                     parse_mod(lang, item, mod_path, outputs)?;
                     Ok(())
                 }

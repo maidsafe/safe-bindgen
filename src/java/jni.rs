@@ -6,7 +6,8 @@ use super::types::{callback_name, rust_ty_to_java};
 use super::{Context, Outputs};
 use common::{
     append_output, is_array_arg, is_array_arg_barefn, is_user_data_arg, is_user_data_arg_barefn,
-    take_out_pat, transform_fnarg_to_argcap,
+    take_out_ident_from_type, take_out_pat, transform_fnarg_to_argcap,
+    transform_fnarg_to_argcap_option,
 };
 use jni::signature::{self, JavaType, Primitive, TypeSignature};
 use quote::ToTokens;
@@ -246,9 +247,10 @@ pub fn generate_jni_function(
         let argcap = unwrap!(transform_fnarg_to_argcap(arg));
         let pat = take_out_pat(&argcap.pat);
         let arg_name = unwrap!(pat).ident.to_string();
-        let q: Option<&syn::ArgCaptured> =
-            transform_fnarg_to_argcap(unwrap!(args_iter.peek())).into();
-        let res = if is_array_arg(unwrap!(transform_fnarg_to_argcap(&arg)), q) {
+        let res = if is_array_arg(
+            transform_fnarg_to_argcap(&arg).unwrap(),
+            transform_fnarg_to_argcap_option(args_iter.peek().cloned()),
+        ) {
             args_iter.next();
             Some(transform_array_arg(&arg_name))
         } else {
@@ -264,12 +266,10 @@ pub fn generate_jni_function(
 
                 // Pointers
                 syn::Type::Ptr(ref ptr) => {
-                    match ptr.to_owned().into_token_stream().to_string().as_str() {
+                    let ident = take_out_ident_from_type(&*ptr.elem).unwrap();
+                    match ident.as_str() {
                         // Opaque pointer that should be passed as a long value
-                        opaque @ "* const App"
-                        | opaque @ "* const Authenticator"
-                        | opaque @ "* mut App"
-                        | opaque @ "* mut Authenticator" => {
+                        opaque @ "App" | opaque @ "Authenticator" => {
                             Some(transform_opaque_ptr(&arg_name, opaque))
                         }
                         // Detect strings, which are *const c_char or *mut c_char
@@ -363,15 +363,12 @@ pub fn generate_jni_function(
 
 /// Transform `ast::Arg` into an (identifier, type) tuple
 fn transform_arg(arg: &syn::BareFnArg) -> (syn::Ident, syn::Ident) {
-    let mut vector = vec![];
-    for vec in arg.to_owned().into_token_stream().to_string().split(":") {
-        vector.push(format!("{}", &vec));
-    }
     let name = &unwrap!(arg.to_owned().name).0;
     let string = format!("{}", quote!(#name));
+    let ident = take_out_ident_from_type(&arg.to_owned().ty).unwrap();
     (
         syn::Ident::new(string.as_str(), Span::call_site()),
-        syn::Ident::new(unwrap!(vector.last()).as_str(), Span::call_site()),
+        syn::Ident::new(ident.as_str(), Span::call_site()),
     )
 }
 

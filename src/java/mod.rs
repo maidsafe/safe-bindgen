@@ -6,7 +6,7 @@ mod types;
 use common::{
     self, append_output, check_no_mangle, is_array_arg, is_array_arg_barefn, is_user_data_arg,
     is_user_data_arg_barefn, parse_attr, retrieve_docstring, take_out_pat,
-    transform_fnarg_to_argcap, FilterMode, Outputs,
+    transform_fnarg_to_argcap, transform_fnarg_to_argcap_option, FilterMode, Outputs,
 };
 extern crate inflector;
 use self::inflector::Inflector;
@@ -89,15 +89,10 @@ impl LangJava {
     /// Applies rustfmt to JNI code to improve debuggability
     fn format_jni_output(&self, input: &mut String) {
         let mut output: Vec<u8> = Vec::with_capacity(input.len() * 2);
-
         let mut cfg = rustfmt::config::Config::default();
         cfg.set().write_mode(rustfmt::config::WriteMode::Plain);
-
-        unwrap!(rustfmt::format_input(
-            rustfmt::Input::Text(input.clone()),
-            &cfg,
-            Some(&mut output),
-        ));
+        rustfmt::format_input(rustfmt::Input::Text(input.clone()), &cfg, Some(&mut output))
+            .unwrap();
 
         *input = String::from_utf8(output).expect("Invalid Rustfmt output found");
     }
@@ -149,7 +144,8 @@ impl common::Lang for LangJava {
         _module: &[String],
         outputs: &mut Outputs,
     ) -> Result<(), Error> {
-        let name = item.to_owned().ident.to_owned().to_string();
+        let ident = &item.ident;
+        let name = format!("{}", quote!(#ident));
         if self.is_ignored(name.as_str()) {
             return Ok(());
         }
@@ -161,7 +157,6 @@ impl common::Lang for LangJava {
         if no_mangle {
             return Ok(());
         }
-        println!("{}",&docs);
         if !common::is_extern(unwrap!(item.to_owned().abi)) {
             // If it doesn't have a C ABI it can't be called from C.
             return Ok(());
@@ -220,39 +215,33 @@ impl common::Lang for LangJava {
                 span: None, // NONE FOR NOW
                 message: "cheddar can not handle parameterized `#[repr(C)]` structs".into(),
             });
-
-            let mut vec = vec![];
-            for x in item.fields.iter() {
-                vec.push(x.clone());
-            }
-            let struct_fields = transform_struct_fields(vec.as_slice());
-            let fields = transform_struct_into_class_fields(&struct_fields, &self.context)?;
-
-            buffer.push_str(" {\n");
-
-            // Class fields
-            buffer.push_str(&generate_class_fields(&fields)?);
-            buffer.push_str("\n");
-
-            // Default constructor that should initialise object fields
-            buffer.push_str(&generate_default_constructor(&name, &fields)?);
-
-            // Parametrised constructor
-            buffer.push_str(&generate_parametrised_constructor(&name, &fields)?);
-
-            // Getters & setters
-            buffer.push_str(&generate_getters_setters(&fields)?);
-            buffer.push_str("}");
-
-            let jni = jni::generate_struct(&struct_fields, &orig_name, &name, &self.context);
-            append_output(jni, "jni.rs", outputs);
-        } else {
-            return Err(Error {
-                level: Level::Bug,
-                span: None, //NONE FOR NOW
-                message: "`parse_struct` called on wrong `Item_`".into(),
-            });
         }
+
+        let mut vec = vec![];
+        for x in item.fields.iter() {
+            vec.push(x.clone());
+        }
+        let struct_fields = transform_struct_fields(vec.as_slice());
+        let fields = transform_struct_into_class_fields(&struct_fields, &self.context)?;
+
+        buffer.push_str(" {\n");
+
+        // Class fields
+        buffer.push_str(&generate_class_fields(&fields)?);
+        buffer.push_str("\n");
+
+        // Default constructor that should initialise object fields
+        buffer.push_str(&generate_default_constructor(&name, &fields)?);
+
+        // Parametrised constructor
+        buffer.push_str(&generate_parametrised_constructor(&name, &fields)?);
+
+        // Getters & setters
+        buffer.push_str(&generate_getters_setters(&fields)?);
+        buffer.push_str("}");
+
+        let jni = jni::generate_struct(&struct_fields, &orig_name, &name, &self.context);
+        append_output(jni, "jni.rs", outputs);
 
         buffer.push_str("\n\n");
 
@@ -264,7 +253,7 @@ impl common::Lang for LangJava {
     fn finalise_output(&mut self, outputs: &mut Outputs) -> Result<(), Error> {
         match outputs.get_mut("jni.rs") {
             Some(input) => {
-                self.format_jni_output(input);
+                //self.format_jni_output(input);
             }
             None => {
                 return Err(Error {
@@ -524,8 +513,19 @@ pub fn transform_native_fn(
     //        ast::Ident::from_str(name),
     //        &ast::Generics::default(),
     //    );
-    let mut fn_declaration: String = format!("{}", quote!(#name));
-    fn_declaration.push_str(&format!("{}", quote!(#*fn_decl.inputs)));
+    let mut fn_declaration: String = format!("fn {} (", quote!(#name));
+    let len = fn_decl.inputs.len();
+    let mut count: usize = 1;
+    for x in &fn_decl.inputs {
+        let argcap = transform_fnarg_to_argcap(x).unwrap();
+        if count != len {
+            fn_declaration.push_str(&format!("{}, \n", quote!(#argcap)));
+        } else {
+            fn_declaration.push_str(&format!("{} \n", quote!(#argcap)));
+        }
+        count = count + 1;
+    }
+    fn_declaration.push_str(")");
     let mut jni = format!(
         "\n{attrs}#[link(name = \"{libname}\")]\nextern {{ {fndecl}; }}\n",
         attrs = fn_attrs,

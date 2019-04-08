@@ -99,11 +99,34 @@ pub fn transform_fnarg_to_argcap(fnarg: &syn::FnArg) -> Option<&syn::ArgCaptured
     }
 }
 
+pub fn transform_fnarg_to_argcap_option(fnarg: Option<&syn::FnArg>) -> Option<&syn::ArgCaptured> {
+    if fnarg.is_some() {
+        if let syn::FnArg::Captured(ref argcap) = fnarg.unwrap() {
+            return Some(argcap);
+        } else {
+            return None;
+        }
+    } else {
+        return None;
+    }
+}
+
 pub fn take_out_pat(argcappat: &syn::Pat) -> Option<&syn::PatIdent> {
     if let syn::Pat::Ident(ref pat) = argcappat {
         return Some(pat);
     } else {
         return None;
+    }
+}
+
+pub fn take_out_ident_from_type(typ: &syn::Type) -> Option<String> {
+    match typ {
+        syn::Type::Ptr(ref ptr) => {
+            let idt = take_out_ident_from_type(&*ptr.elem).unwrap();
+            return Some(idt);
+        }
+        syn::Type::Path(path) => return Some(path.to_owned().path.into_token_stream().to_string()),
+        _ => return None,
     }
 }
 
@@ -216,6 +239,7 @@ pub fn is_array_arg_barefn(arg: &syn::BareFnArg, next_arg: Option<&syn::BareFnAr
         .0
         .into_token_stream()
         .to_string();
+//    println!("{}",name);
 
     if let syn::Type::Ptr(ref typeptr) = arg.ty {
         !is_result_arg_barefn(&arg)
