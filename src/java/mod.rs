@@ -6,7 +6,7 @@ mod types;
 use common::{
     self, append_output, check_no_mangle, is_array_arg, is_array_arg_barefn, is_user_data_arg,
     is_user_data_arg_barefn, parse_attr, retrieve_docstring, take_out_pat,
-    transform_fnarg_to_argcap, transform_fnarg_to_argcap_option, FilterMode, Outputs,
+    transform_fnarg_to_argcap, FilterMode, Outputs,
 };
 extern crate inflector;
 use self::inflector::Inflector;
@@ -15,13 +15,7 @@ use jni::signature::JavaType;
 use quote::*;
 use rustfmt;
 use std::collections::{BTreeSet, HashMap, HashSet};
-use std::ops::Deref;
 use struct_field::{transform_struct_fields, StructField};
-use syn::spanned::Spanned;
-use syntax::abi::Abi;
-use syntax::print::pprust;
-use syntax::{ast, codemap};
-use toml::to_string;
 use Error;
 use Level;
 
@@ -425,9 +419,9 @@ pub fn transform_native_fn(
         let mut java_type = rust_to_java(&unwrap!(transform_fnarg_to_argcap(arg)).ty, context)?;
         let mut next_arg: Option<&syn::ArgCaptured>;
         if fn_args.peek().is_some() {
-            next_arg = Option::Some(unwrap!(transform_fnarg_to_argcap(unwrap!(fn_args.peek()))))
+            next_arg = Some(unwrap!(transform_fnarg_to_argcap(unwrap!(fn_args.peek()))))
         } else {
-            next_arg = Option::None
+            next_arg = None
         }
         if is_array_arg(unwrap!(transform_fnarg_to_argcap(arg)), next_arg) {
             // Skip the length args - e.g. for a case of `ptr: *const u8, ptr_len: usize`
@@ -532,18 +526,10 @@ pub fn transform_native_fn(
         libname = context.lib_name,
         fndecl = fn_declaration,
     );
-    let mut vec = vec![];
-    for input in fn_decl.inputs.to_owned() {
-        vec.push(input);
-    }
+    let vec: Vec<_> = fn_decl.inputs.iter().cloned().collect();
     // Generate the JNI part of the interface
     jni.push_str(&jni::generate_jni_function(
-        &vec.as_slice(),
-        attrs,
-        name,
-        &java_name,
-        context,
-        outputs,
+        &vec, attrs, name, &java_name, context, outputs,
     ));
     jni.push_str("\n");
     append_output(jni, "jni.rs", outputs);
@@ -640,25 +626,13 @@ fn callback_to_java(fn_ty: &syn::TypeBareFn, context: &Context) -> Result<String
 #[cfg(test)]
 mod tests {
     use super::*;
-    use syntax::ast::{Arg, ItemKind};
-    use syntax::codemap::FilePathMapping;
-    use syntax::parse::{self, ParseSess};
+    use syn;
 
     #[test]
     fn cb_names() {
-        fn get_inputs(source: &str) -> Vec<Arg> {
-            let parse_sess = ParseSess::new(FilePathMapping::empty());
-
-            let item = unwrap!(unwrap!(parse::parse_item_from_source_str(
-                "dummy.rs".to_owned(),
-                source.to_owned(),
-                &parse_sess,
-            )));
-
-            match item.node {
-                ItemKind::Fn(ref fn_decl, _, _, _, _, _) => fn_decl.inputs.clone(),
-                _ => panic!("wrong item type"),
-            }
+        fn get_inputs(source: &str) -> Vec<syn::BareFnArg> {
+            let item: syn::TypeBareFn = unwrap!(syn::parse_str(source));
+            item.inputs.into_iter().collect()
         }
 
         let context = Context {
@@ -669,31 +643,28 @@ mod tests {
             generated_jni_cbs: BTreeSet::new(),
         };
 
-        let inputs = get_inputs("fn dummy() {}");
+        let inputs = get_inputs("fn ()");
         assert_eq!("CallbackVoid", unwrap!(callback_name(&inputs, &context)));
 
-        let inputs = get_inputs("fn dummy(user_data: *mut c_void, result: *const FfiResult) {}");
+        let inputs = get_inputs("fn (user_data: *mut c_void, result: *const FfiResult)");
         assert_eq!("CallbackResult", unwrap!(callback_name(&inputs, &context)));
 
-        let inputs = get_inputs(
-            "fn dummy(user_data: *mut c_void, result: *const FfiResult, b: u64, c: u32) {}",
-        );
+        let inputs =
+            get_inputs("fn (user_data: *mut c_void, result: *const FfiResult, b: u64, c: u32)");
         assert_eq!(
             "CallbackResultLongInt",
             unwrap!(callback_name(&inputs, &context))
         );
 
-        let inputs = get_inputs(
-            "fn dummy(user_data: *mut c_void, result: *const FfiResult, b: *const MyStruct) {}",
-        );
+        let inputs =
+            get_inputs("fn (user_data: *mut c_void, result: *const FfiResult, b: *const MyStruct)");
         assert_eq!(
             "CallbackResultMyStruct",
             unwrap!(callback_name(&inputs, &context))
         );
 
-        let inputs = get_inputs(
-            "fn dummy(user_data: *mut c_void, result: *const FfiResult, b: *const c_char) {}",
-        );
+        let inputs =
+            get_inputs("fn (user_data: *mut c_void, result: *const FfiResult, b: *const c_char)");
         assert_eq!(
             "CallbackResultString",
             unwrap!(callback_name(&inputs, &context))

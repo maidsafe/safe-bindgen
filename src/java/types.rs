@@ -1,18 +1,10 @@
 //! Functions for converting Rust types to Java types.
 
-use common::{
-    is_array_arg, is_array_arg_barefn, is_result_arg, is_result_arg_barefn, is_user_data_arg,
-    is_user_data_arg_barefn, transform_fnarg_to_argcap,
-};
-use core::borrow::Borrow;
+use common::{is_array_arg_barefn, is_result_arg_barefn, is_user_data_arg_barefn};
 use java::Context;
 use jni::signature::{JavaType, Primitive};
 use std::ops::Deref;
 use syn::export::ToTokens;
-use syn::punctuated::Iter;
-use syntax::abi::Abi;
-use syntax::print::pprust;
-use syntax::{ast, codemap};
 use {Error, Level};
 
 fn primitive_type_to_str(ty: Primitive) -> &'static str {
@@ -283,9 +275,7 @@ pub fn rust_ty_to_java(ty: &str) -> Option<JavaType> {
 mod tests {
     use super::*;
     use jni::signature::{JavaType, Primitive};
-    use syntax::ast::*;
-    use syntax::codemap::DUMMY_SP;
-    use syntax::ptr::P;
+    use quote::quote;
 
     #[test]
     fn test_rust_to_java() {
@@ -294,22 +284,8 @@ mod tests {
         assert_eq!(
             // Check `*const c_char` is correctly converted into `String`
             unwrap!(rust_to_java(
-                &Ty {
-                    id: DUMMY_NODE_ID,
-                    span: DUMMY_SP,
-                    node: TyKind::Ptr(MutTy {
-                        mutbl: Mutability::Immutable,
-                        ty: P(Ty {
-                            id: DUMMY_NODE_ID,
-                            span: DUMMY_SP,
-                            node: TyKind::Path(
-                                None,
-                                Path::from_ident(DUMMY_SP, Ident::from_str("c_char")),
-                            ),
-                        }),
-                    }),
-                },
-                &context,
+                &unwrap!(syn::parse_str("*const c_char")),
+                &context
             )),
             JavaType::Object("String".to_string())
         );

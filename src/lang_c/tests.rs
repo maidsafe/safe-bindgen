@@ -1,8 +1,8 @@
 use super::types::CType;
-use crate::lang_c::LangC;
-use crate::syntax::codemap::FilePathMapping;
-use crate::syntax::{ast, parse};
-use crate::test_utils::fetch;
+use lang_c::LangC;
+use proc_macro2::TokenStream;
+use syn;
+use test_utils::fetch;
 
 #[test]
 fn sanitise_id() {
@@ -12,20 +12,9 @@ fn sanitise_id() {
     assert!(super::sanitise_id("filename.h") == "filenameh");
 }
 
-fn ty(source: &str) -> ast::Ty {
-    let sess = parse::ParseSess::new(FilePathMapping::empty());
-    let result = {
-        let mut parser = parse::new_parser_from_source_str(&sess, "".into(), source.into());
-        parser.parse_ty()
-    };
-
-    match result {
-        Ok(p) => (*p).clone(),
-        Err(e) => panic!(
-            "internal testing error: could not parse type from {:?}, reason: {:?}",
-            source, e
-        ),
-    }
+fn ty(source: &str) -> syn::Type {
+    let item: Result<syn::Type, _> = syn::parse_str(source);
+    unwrap!(item)
 }
 
 #[test]

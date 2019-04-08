@@ -1,12 +1,11 @@
-use crate::common::{Lang, Outputs};
-use crate::parse;
-use crate::syntax;
-use crate::syntax::codemap::FilePathMapping;
-use crate::Error;
 use colored::*;
+use common::{Lang, Outputs};
 use diff;
+use parse;
 use std::collections::HashMap;
 use std::fmt::Write;
+use syn;
+use Error;
 
 macro_rules! compile {
     ($lang:expr, $rust:tt) => {
@@ -48,16 +47,9 @@ pub fn try_compile(
     mut lang: impl Lang,
     rust_src: String,
 ) -> Result<HashMap<String, String>, Vec<Error>> {
-    let session = syntax::parse::ParseSess::new(FilePathMapping::empty());
-    let ast = unwrap!(syntax::parse::parse_crate_from_source_str(
-        "lib.rs".to_string(),
-        rust_src,
-        &session
-    ));
-
+    let ast: syn::File = unwrap!(syn::parse_str(&rust_src));
     let mut outputs = Outputs::default();
-
-    parse::parse_mod(&mut lang, &ast.module, &[Default::default()], &mut outputs)?;
+    parse::parse_file(&mut lang, &ast, &[Default::default()], &mut outputs)?;
     lang.finalise_output(&mut outputs)?;
 
     Ok(outputs)

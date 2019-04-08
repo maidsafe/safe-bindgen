@@ -224,7 +224,7 @@ pub fn is_ptr_len_arg(ty: &syn::Type, arg_name: &str) -> bool {
 pub fn is_array_arg(arg: &syn::ArgCaptured, next_arg: Option<&syn::ArgCaptured>) -> bool {
     let pat = unwrap!(take_out_pat(&arg.pat));
     let name = pat.ident.to_owned().into_token_stream().to_string();
-    if let syn::Type::Ptr(ref typeptr) = arg.ty {
+    if let syn::Type::Ptr(ref _typeptr) = arg.ty {
         !is_result_arg(&arg)
             && next_arg
                 .map(|arg| is_ptr_len_arg(&arg.ty, name.as_str()))
@@ -239,7 +239,7 @@ pub fn is_array_arg_barefn(arg: &syn::BareFnArg, next_arg: Option<&syn::BareFnAr
         .0
         .into_token_stream()
         .to_string();
-//    println!("{}",name);
+    //    println!("{}",name);
 
     if let syn::Type::Ptr(ref typeptr) = arg.ty {
         !is_result_arg_barefn(&arg)

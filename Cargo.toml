@@ -4,15 +4,12 @@ version = "0.11.0"
 authors = ["Sean Marshallsay <srm.1708@gmail.com>",
            "Matthew Gregan <kinetik@flim.org>",
            "MaidSafe Developers <dev@maidsafe.net>"]
-
 description = "A library to automatically generate C and Java files from Rust source files."
 readme = "README.md"
 keywords = ["c", "header", "ffi"]
-
 homepage = "https://github.com/maidsafe/safe_bindgen"
 repository = "https://github.com/maidsafe/safe_bindgen"
 documentation = "https://docs.rs/safe_bindgen"
-
 license = "MIT OR BSD-3-Clause"
 edition = "2018"
 

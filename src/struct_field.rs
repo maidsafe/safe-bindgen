@@ -1,6 +1,4 @@
-use core::borrow::{Borrow, BorrowMut};
 use std::collections::BTreeSet;
-use std::ops::Deref;
 use syn::export::ToTokens;
 
 #[derive(Debug)]

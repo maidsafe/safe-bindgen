@@ -351,10 +351,10 @@ pub fn retrieve_docstring(attr: &syn::Attribute) -> Option<String> {
 
 fn transform_const_value(expr: &syn::Expr) -> Option<ConstValue> {
     match expr {
-        syn::Expr::Lit(ref ExprLit) => transform_const_literal(&ExprLit.lit),
-        syn::Expr::Array(ref Array) => transform_const_array(Array),
-        syn::Expr::Struct(ref Struct) => transform_const_struct(Struct),
-        syn::Expr::Reference(ref exprref) => transform_const_value(expr),
+        syn::Expr::Lit(ref exprlit) => transform_const_literal(&exprlit.lit),
+        syn::Expr::Array(ref array) => transform_const_array(array),
+        syn::Expr::Struct(ref s_struct) => transform_const_struct(s_struct),
+        syn::Expr::Reference(ref exprref) => transform_const_value(expr), // FIXME
         syn::Expr::Cast(ref exprcast) => transform_const_cast(&*exprcast.expr, &*exprcast.ty),
         _ => None,
     }

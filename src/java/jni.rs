@@ -1,6 +1,5 @@
 //! Functions to generate JNI bindings
 extern crate inflector;
-extern crate proc_macro2;
 use self::inflector::Inflector;
 use super::types::{callback_name, rust_ty_to_java};
 use super::{Context, Outputs};
@@ -10,6 +9,7 @@ use common::{
     transform_fnarg_to_argcap_option,
 };
 use jni::signature::{self, JavaType, Primitive, TypeSignature};
+use proc_macro2;
 use quote::ToTokens;
 use quote::*;
 use struct_field::StructField;

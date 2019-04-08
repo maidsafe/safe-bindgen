@@ -63,6 +63,7 @@ extern crate toml;
 //#[macro_use]
 extern crate jni;
 extern crate petgraph;
+extern crate proc_macro2;
 extern crate quote;
 extern crate rustfmt;
 

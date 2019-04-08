@@ -1,6 +1,5 @@
 //! Functions for actually parsing the source file.
 
-use super::LangJava;
 use common::{Lang, Outputs};
 use Error;
 
