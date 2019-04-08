@@ -200,17 +200,12 @@ pub fn is_result_arg(arg: &syn::ArgCaptured) -> bool {
 }
 
 pub fn is_result_arg_barefn(arg: &syn::BareFnArg) -> bool {
-    let mut vector = vec![];
-    for vec in arg.to_owned().into_token_stream().to_string().split(":") {
-        vector.push(format!("{}", &vec));
-    }
-    if unwrap!(vector.first()).as_str() == "result "
-        && unwrap!(vector.last()).as_str() == "*const FfiResult"
-    {
-        return true;
+    let arg_name = if let Some((syn::BareFnArgName::Named(ref arg_name), _)) = arg.name {
+        arg_name.to_string()
     } else {
         return false;
-    }
+    };
+    arg_name == "result" && arg.ty.clone().into_token_stream().to_string() == "* const FfiResult"
 }
 
 /// Check the function argument is a length argument for a *const u8 pointer
