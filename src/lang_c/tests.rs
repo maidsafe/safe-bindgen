@@ -1,8 +1,7 @@
 use super::types::CType;
 use lang_c::LangC;
-use proc_macro2::TokenStream;
 use syn;
-use test_utils::fetch;
+use test_utils::{fetch, ty};
 
 #[test]
 fn sanitise_id() {
@@ -10,11 +9,6 @@ fn sanitise_id() {
     assert!(super::sanitise_id("!@£$%^&*()_+") == "_");
     // https://github.com/Sean1708/rusty-cheddar/issues/29
     assert!(super::sanitise_id("filename.h") == "filenameh");
-}
-
-fn ty(source: &str) -> syn::Type {
-    let item: Result<syn::Type, _> = syn::parse_str(source);
-    unwrap!(item)
 }
 
 #[test]

@@ -538,7 +538,7 @@ pub fn transform_native_fn(
 }
 
 fn check_type_never(ty: &syn::Type) -> bool {
-    if let syn::Type::Never(ref never) = ty {
+    if let syn::Type::Never(ref _never) = ty {
         return true;
     } else {
         return false;

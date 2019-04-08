@@ -558,7 +558,6 @@ fn path_to_c(path: &syn::TypePath) -> Result<CType, Error> {
     // Types in modules, `my_mod::MyType`.
     if path.path.segments.len() > 1 {
         let mut path = path.path.clone();
-
         let ty = unwrap!(path.segments.pop()).into_value().ident.to_string();
 
         let module = path

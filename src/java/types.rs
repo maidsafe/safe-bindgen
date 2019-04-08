@@ -3,7 +3,6 @@
 use common::{is_array_arg_barefn, is_result_arg_barefn, is_user_data_arg_barefn};
 use java::Context;
 use jni::signature::{JavaType, Primitive};
-use std::ops::Deref;
 use syn::export::ToTokens;
 use {Error, Level};
 
@@ -207,22 +206,24 @@ fn path_to_java(
 
     // Types in modules, `my_mod::MyType`.
     if path.segments.len() > 1 {
-        let ty = unwrap!(path.segments.last()).into_value();
-        //.expect("already checked that there were at least two elements");
-        let ty: String = ty.ident.to_owned().to_string();
-        let mut module = String::new();
-        module.to_owned();
-        for segment in path.segments.iter() {
-            module.push_str(segment.ident.to_string().as_str());
-        }
-        match &*module.into_boxed_str() {
+        let mut path = path.clone();
+        let ty = unwrap!(path.segments.pop()).into_value().ident.to_string();
+
+        let module = path
+            .segments
+            .iter()
+            .map(|segment| segment.ident.to_string())
+            .collect::<Vec<_>>()
+            .join("::");
+
+        match module.as_str() {
             "std::os::raw" | "libc" => {
                 Ok(rust_ty_to_java(ty.as_str()).unwrap_or_else(|| JavaType::Object(ty)))
             }
-            _ => Err(Error {
+            ty => Err(Error {
                 level: Level::Error,
-                span: None, //NONE FOR NOW
-                message: "can't convert type".into(),
+                span: None,
+                message: format!("can't convert type {:?}", ty),
             }),
         }
     } else {
@@ -269,7 +270,7 @@ pub fn rust_ty_to_java(ty: &str) -> Option<JavaType> {
 mod tests {
     use super::*;
     use jni::signature::{JavaType, Primitive};
-    use quote::quote;
+    use test_utils::ty;
 
     #[test]
     fn test_rust_to_java() {
@@ -277,12 +278,36 @@ mod tests {
 
         assert_eq!(
             // Check `*const c_char` is correctly converted into `String`
-            unwrap!(rust_to_java(
-                &unwrap!(syn::parse_str("*const c_char")),
-                &context
-            )),
+            unwrap!(rust_to_java(&ty("*const c_char"), &context)),
             JavaType::Object("String".to_string())
         );
+    }
+
+    #[test]
+    fn libc_types() {
+        let context = Context::default();
+
+        let type_map = [
+            ("libc::c_void", JavaType::Primitive(Primitive::Void)),
+            ("libc::c_float", JavaType::Primitive(Primitive::Float)),
+            ("libc::c_double", JavaType::Primitive(Primitive::Double)),
+            ("libc::c_char", JavaType::Primitive(Primitive::Byte)),
+            ("libc::c_schar", JavaType::Primitive(Primitive::Byte)),
+            ("libc::c_uchar", JavaType::Primitive(Primitive::Byte)),
+            ("libc::c_short", JavaType::Primitive(Primitive::Short)),
+            ("libc::c_ushort", JavaType::Primitive(Primitive::Short)),
+            ("libc::c_int", JavaType::Primitive(Primitive::Int)),
+            ("libc::c_uint", JavaType::Primitive(Primitive::Int)),
+            ("libc::c_long", JavaType::Primitive(Primitive::Long)),
+            ("libc::c_ulong", JavaType::Primitive(Primitive::Long)),
+        ];
+
+        for (rust_type, correct_java_type) in &type_map {
+            assert_eq!(
+                unwrap!(rust_to_java(&ty(rust_type), &context)),
+                *correct_java_type
+            );
+        }
     }
 
     #[test]

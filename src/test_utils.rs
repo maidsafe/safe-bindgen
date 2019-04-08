@@ -43,6 +43,12 @@ macro_rules! assert_multiline_eq {
     }};
 }
 
+/// Convert source string into an AST type
+pub fn ty(source: &str) -> syn::Type {
+    let item: Result<syn::Type, _> = syn::parse_str(source);
+    unwrap!(item)
+}
+
 pub fn try_compile(
     mut lang: impl Lang,
     rust_src: String,
