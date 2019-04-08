@@ -557,26 +557,23 @@ fn path_to_c(path: &syn::TypePath) -> Result<CType, Error> {
 
     // Types in modules, `my_mod::MyType`.
     if path.path.segments.len() > 1 {
-        let ty = unwrap!(path.path.segments.last()).into_value();
-        //.expect("already checked that there were at least two elements");            .split_last()
-        let ty = ty.ident.to_string();
-        //        path
-        //            .path
-        //            .segments
-        //            .last().clone()
-        //            .expect("poping last element for module failed");
-        let mut module = String::new();
-        module.to_owned();
-        for segment in path.path.segments.iter() {
-            module.push_str(segment.ident.to_string().as_str());
-        }
-        //let module = module.join("::");
-        match &*module.into_boxed_str() {
+        let mut path = path.path.clone();
+
+        let ty = unwrap!(path.segments.pop()).into_value().ident.to_string();
+
+        let module = path
+            .segments
+            .iter()
+            .map(|segment| segment.ident.to_string())
+            .collect::<Vec<_>>()
+            .join("::");
+
+        match module.as_str() {
             "libc" => Ok(libc_ty_to_c(ty)),
             "std::os::raw" => Ok(osraw_ty_to_c(ty)),
             _ => Err(Error {
                 level: Level::Error,
-                span: None, //NONE FOR NOW
+                span: None,
                 message: "can not handle types in other modules (except `libc` and `std::os::raw`)"
                     .into(),
             }),
