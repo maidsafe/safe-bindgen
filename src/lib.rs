@@ -48,17 +48,8 @@
 )]
 // FIXME: add documentation and deny `missing_documentation`
 #![allow(missing_docs)]
-#![cfg_attr(not(feature = "with-syntex"), feature(rustc_private))]
 #![recursion_limit = "128"]
 
-#[cfg(not(feature = "with-syntex"))]
-extern crate rustc_errors as errors;
-#[cfg(not(feature = "with-syntex"))]
-extern crate syntax;
-#[cfg(feature = "with-syntex")]
-extern crate syntex_errors as errors;
-#[cfg(feature = "with-syntex")]
-extern crate syntex_syntax as syntax;
 extern crate toml;
 //#[macro_use]
 extern crate jni;
@@ -93,14 +84,14 @@ use std::fs::File;
 use std::io::Error as IoError;
 use std::io::{Read, Write};
 use std::path::{self, Component, Path, PathBuf};
-//use syn::export::Span as synspan;
-use syntax::codemap::{FilePathMapping, Span};
+use syn::export::Span;
 
 #[cfg(test)]
 #[macro_use]
 mod test_utils;
 mod common;
 mod csharp;
+mod errors;
 mod java;
 mod lang_c;
 mod output;
@@ -163,59 +154,9 @@ impl From<Error> for Vec<Error> {
 }
 
 impl Error {
-    /// Use a ParseSess to print the error in the correct format.
-    #[allow(unused_must_use)]
-    fn print(&self, sess: &syntax::parse::ParseSess) {
-        // TODO: there must be some way to reduce the amount of code here.
-        // Throw away the results (with { ...; }) since they are handled elsewhere.
-        if let Some(span) = self.span {
-            match self.level {
-                Level::Bug => {
-                    sess.span_diagnostic.span_bug(span, &self.message);
-                }
-                Level::Fatal => {
-                    sess.span_diagnostic.span_fatal(span, &self.message);
-                }
-                Level::Error => {
-                    sess.span_diagnostic.span_err(span, &self.message);
-                }
-                Level::Warning => {
-                    sess.span_diagnostic.span_warn(span, &self.message);
-                }
-                Level::Note => {
-                    sess.span_diagnostic
-                        .span_note_without_error(span, &self.message);
-                }
-                Level::Help => {
-                    sess.span_diagnostic
-                        .struct_dummy()
-                        .span_help(span, &self.message);
-                }
-                _ => unreachable!(),
-            };
-        } else {
-            match self.level {
-                Level::Bug => {
-                    sess.span_diagnostic.bug(&self.message);
-                }
-                Level::Fatal => {
-                    sess.span_diagnostic.fatal(&self.message);
-                }
-                Level::Error => {
-                    sess.span_diagnostic.err(&self.message);
-                }
-                Level::Warning => {
-                    sess.span_diagnostic.warn(&self.message);
-                }
-                Level::Note => {
-                    sess.span_diagnostic.note_without_error(&self.message);
-                }
-                Level::Help => {
-                    sess.span_diagnostic.struct_dummy().help(&self.message);
-                }
-                _ => unreachable!(),
-            };
-        }
+    fn print(&self) {
+        // TODO: improve error output, add spans where needed
+        println!("{:?}, {}: {}", self.span, self.level, self.message);
     }
 }
 
@@ -255,10 +196,6 @@ enum Input {
 pub struct Bindgen {
     /// The root source file of the crate.
     input: Input,
-    /// The current parser session.
-    ///
-    /// Used for printing errors.
-    session: syntax::parse::ParseSess,
 }
 
 impl Bindgen {
@@ -270,10 +207,7 @@ impl Bindgen {
         let source_path = source_file_from_cargo()?;
         let input = Input::File(PathBuf::from(source_path));
 
-        Ok(Bindgen {
-            input,
-            session: syntax::parse::ParseSess::new(FilePathMapping::empty()),
-        })
+        Ok(Bindgen { input })
     }
 
     /// Set the path to the root source file of the crate.
@@ -472,9 +406,9 @@ impl Bindgen {
         self.write_outputs_or_panic(output_dir, &outputs);
     }
 
-    /// Print an error using the ParseSess stored in Cheddar.
+    /// Print an error
     pub fn print_error(&self, error: &Error) {
-        error.print(&self.session);
+        error.print();
     }
 }
 

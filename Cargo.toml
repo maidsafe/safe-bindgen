@@ -13,13 +13,6 @@ documentation = "https://docs.rs/safe_bindgen"
 license = "MIT OR BSD-3-Clause"
 edition = "2018"
 
-[features]
-default = ["with-syntex"]
-with-syntex = [
-    "syntex_errors",
-    "syntex_syntax",
-]
-
 [lib]
 name = "safe_bindgen"
 path = "src/lib.rs"
@@ -30,8 +23,6 @@ doc = false
 path = "src/bin/bindgen.rs"
 
 [dependencies]
-syntex_errors = {version = "~0.59.1", optional = true}
-syntex_syntax = {version = "~0.59.1", optional = true}
 toml = "~0.4.6"
 clap = "~2.25.1"
 Inflector = "~0.11.3"
