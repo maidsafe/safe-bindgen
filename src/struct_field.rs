@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn transform_fields_primitive() {
         let s: syn::ItemStruct = unwrap!(syn::parse_str(
-            "struct Foo { a: u64, b: *const c_char, c: *mut c_char }"
+            "struct Foo { a: u64, b: *const c_char, c: *mut c_char, s: *mut Foo }"
         ));
         let mut expected_fields = Vec::new();
 
@@ -130,6 +130,16 @@ mod tests {
                 expected_fields.push(StructField::Primitive(fields.named[0].clone()));
                 expected_fields.push(StructField::String(fields.named[1].clone()));
                 expected_fields.push(StructField::String(fields.named[2].clone()));
+
+                match &fields.named[3].ty {
+                    syn::Type::Ptr(ref ty) => {
+                        expected_fields.push(StructField::StructPtr {
+                            field: fields.named[3].clone(),
+                            ty: ty.clone(),
+                        });
+                    }
+                    x => panic!("parsed unexpected type {:?}", x),
+                }
 
                 transform_struct_fields(&fields.named.iter().cloned().collect::<Vec<_>>())
             }

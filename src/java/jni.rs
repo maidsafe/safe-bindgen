@@ -409,18 +409,15 @@ fn generate_callback(cb: &syn::TypeBareFn, context: &Context) -> JniCallback {
                 // Pointers
                 syn::Type::Ptr(ref ptr) => {
                     let ty = &*ptr.elem;
-                    match format!("{}", quote!(#ty)).as_str() {
+                    match ty.into_token_stream().to_string().as_str() {
                         // Opaque ptrs passed as long values
-                        "* mut App"
-                        | "* mut Authenticator"
-                        | "* const App"
-                        | "* const Authenticator" => {
+                        "App" | "Authenticator" => {
                             quote! {
                                 let #arg_name = #arg_name as jlong;
                             }
                         }
                         // Strings
-                        "* mut c_char" | "* const c_char" => {
+                        "c_char" => {
                             quote! {
                                 let #arg_name: JObject = if #arg_name.is_null() {
                                     JObject::null()
@@ -433,11 +430,11 @@ fn generate_callback(cb: &syn::TypeBareFn, context: &Context) -> JniCallback {
                         // Other ptrs
                         _ => {
                             quote! {
-                                    let #arg_name = if #arg_name.is_null() {
-                                        JObject::null()
-                                    } else {
-                                        jni_unwrap!((*#arg_name).to_java(&env))
-                                    };
+                                let #arg_name = if #arg_name.is_null() {
+                                    JObject::null()
+                                } else {
+                                    jni_unwrap!((*#arg_name).to_java(&env))
+                                };
                             }
                         }
                     }
@@ -944,9 +941,20 @@ pub fn generate_struct(
 
 #[cfg(test)]
 mod tests {
-    use super::transform_jni_arg;
+    use super::{generate_callback, transform_jni_arg};
+    use crate::java::Context;
     use syn;
     use unwrap::unwrap;
+
+    // TODO: add more test cases
+    #[test]
+    fn callback_generation_app_ctx() {
+        let ctx = Context::default();
+        let rust_cb: syn::TypeBareFn = unwrap!(syn::parse_str("extern fn (app: *const App)"));
+
+        let cb = generate_callback(&rust_cb, &ctx);
+        assert_eq!("let app = app as jlong ;", cb.stmts[0].to_string());
+    }
 
     #[test]
     fn jni_arg_transformation() {
