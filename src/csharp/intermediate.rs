@@ -264,8 +264,9 @@ pub fn transform_enum(variants: &[syn::Variant]) -> Option<Enum> {
     let variants: Option<Vec<_>> = variants
         .into_iter()
         .map(|variant| {
-            if let syn::Fields::Unit = variant.fields {
-                return None;
+            match variant.fields {
+                syn::Fields::Unit => (),
+                _ => return None,
             }
 
             let (_, docs) = common::parse_attr(&variant.attrs[..], |_| true, retrieve_docstring);
