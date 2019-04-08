@@ -246,7 +246,7 @@ impl common::Lang for LangJava {
     fn finalise_output(&mut self, outputs: &mut Outputs) -> Result<(), Error> {
         match outputs.get_mut("jni.rs") {
             Some(input) => {
-                //self.format_jni_output(input);
+                self.format_jni_output(input);
             }
             None => {
                 return Err(Error {
@@ -498,26 +498,18 @@ pub fn transform_native_fn(
             fn_attrs.push_str(&attr.into_token_stream().to_owned().to_string());
         }
     }
-    //    let fn_decl_import = pprust::fun_to_string(
-    //        fn_decl,
-    //        ast::Unsafety::Normal,
-    //        ast::Constness::NotConst,
-    //        ast::Ident::from_str(name),
-    //        &ast::Generics::default(),
-    //    );
-    let mut fn_declaration: String = format!("fn {} (", quote!(#name));
-    let len = fn_decl.inputs.len();
-    let mut count: usize = 1;
-    for x in &fn_decl.inputs {
-        let argcap = transform_fnarg_to_argcap(x).unwrap();
-        if count != len {
-            fn_declaration.push_str(&format!("{}, \n", quote!(#argcap)));
-        } else {
-            fn_declaration.push_str(&format!("{} \n", quote!(#argcap)));
-        }
-        count += 1;
-    }
-    fn_declaration.push_str(")");
+    let args: Vec<_> = fn_decl
+        .inputs
+        .iter()
+        .map(|arg| {
+            unwrap!(transform_fnarg_to_argcap(arg))
+                .into_token_stream()
+                .to_string()
+        })
+        .collect();
+
+    let fn_declaration = format!("fn {}({})", name, args.join(", "));
+
     let mut jni = format!(
         "\n{attrs}#[link(name = \"{libname}\")]\nextern {{ {fndecl}; }}\n",
         attrs = fn_attrs,

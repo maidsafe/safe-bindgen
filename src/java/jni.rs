@@ -845,7 +845,7 @@ fn generate_struct_from_java(
             }
             StructField::StructPtr { ref ty, .. } => {
                 let typ = &*ty.elem;
-                let ty_str = format!("{}", quote!(typ));
+                let ty_str = typ.into_token_stream().to_string();
                 let signature = format!("{}", unwrap!(rust_ty_to_signature(&typ, context)));
 
                 let ty = syn::Ident::new(ty_str.as_str(), Span::call_site());
