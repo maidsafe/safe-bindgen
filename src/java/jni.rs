@@ -1,6 +1,7 @@
 //! Functions to generate JNI bindings
 extern crate inflector;
 use self::inflector::Inflector;
+use self::proc_macro2::Span;
 use super::types::{callback_name, rust_ty_to_java};
 use super::{Context, Outputs};
 use crate::common::{
@@ -9,15 +10,11 @@ use crate::common::{
     transform_fnarg_to_argcap_option,
 };
 use crate::struct_field::StructField;
+use core::borrow::Borrow;
 use jni::signature::{self, JavaType, Primitive, TypeSignature};
 use proc_macro2;
 use quote::ToTokens;
 use quote::*;
-//use self::proc_macro2::TokenStream;
-//use self::proc_macro2::*;
-//use syn::Ident;
-use self::proc_macro2::Span;
-use core::borrow::Borrow;
 use unwrap::unwrap;
 
 fn to_jni_arg(arg: &syn::ArgCaptured, ty_name: &str) -> proc_macro2::TokenStream {
@@ -35,8 +32,7 @@ fn transform_jni_arg(arg: &syn::ArgCaptured) -> proc_macro2::TokenStream {
         // Plain old types.
         syn::Type::Path(ref path) => {
             let ty = unwrap!(path.path.segments.last()).into_value();
-
-            let ty: String = ty.to_owned().ident.to_owned().to_string();
+            let ty = ty.ident.to_string();
 
             let jni_type = match ty.as_str() {
                 "c_char" | "u8" | "i8" => "jbyte",
@@ -52,7 +48,7 @@ fn transform_jni_arg(arg: &syn::ArgCaptured) -> proc_macro2::TokenStream {
         // Standard pointers.
         syn::Type::Ptr(ref ptr) => {
             // Detect strings, which are *const c_char or *mut c_char
-            match &*format!("{}", quote!(#ptr)) {
+            match ptr.into_token_stream().to_string().as_str() {
                 "* const c_char" | "* mut c_char" => to_jni_arg(arg, "JString"),
                 "* mut App" | "* mut Authenticator" | "* const App" | "* const Authenticator" => {
                     to_jni_arg(arg, "jlong")
@@ -123,7 +119,7 @@ fn transform_string_arg(arg_name: &str) -> JniArgResult {
     // statements
     let arg_name = syn::Ident::new(arg_name, Span::call_site());
     let stmt = quote! {
-        let arg_name = jni_unwrap!(CString::from_java(&env, #arg_name));
+        let #arg_name = jni_unwrap!(CString::from_java(&env, #arg_name));
     };
 
     // call arg value(s)
@@ -140,7 +136,7 @@ fn transform_struct_arg(arg_name: &str, arg_ty: &syn::Type) -> JniArgResult {
         Span::call_site(),
     );
     let stmt = quote! {
-        let arg_name = jni_unwrap!(#struct_ty::from_java(&env, #arg_name));
+        let #arg_name = jni_unwrap!(#struct_ty::from_java(&env, #arg_name));
     };
 
     // call arg value(s)
@@ -153,7 +149,7 @@ fn transform_array_arg(arg_name: &str) -> JniArgResult {
     // statements
     let arg_name = syn::Ident::new(arg_name.to_string().as_str(), Span::call_site());
     let stmt = quote! {
-        let arg_name = jni_unwrap!(Vec::from_java(&env, #arg_name));
+        let #arg_name = jni_unwrap!(Vec::from_java(&env, #arg_name));
     };
 
     // call arg value(s)
@@ -173,7 +169,7 @@ fn transform_callbacks_arg(
         .collect();
 
     let stmt = quote! {
-        let ctx = gen_ctx!(env, #(cb_ids),*);
+        let ctx = gen_ctx!(env, #(#cb_ids),*);
     };
 
     // call arg value(s)
@@ -267,7 +263,7 @@ pub fn generate_jni_function(
 
                 // Pointers
                 syn::Type::Ptr(ref ptr) => {
-                    let ident = take_out_ident_from_type(&*ptr.elem).unwrap();
+                    let ident = unwrap!(take_out_ident_from_type(&*ptr.elem));
                     match ident.as_str() {
                         // Opaque pointer that should be passed as a long value
                         opaque @ "App" | opaque @ "Authenticator" => {
@@ -301,14 +297,11 @@ pub fn generate_jni_function(
     }
 
     if !callbacks.is_empty() {
-        let cb_base_name: String = if callbacks.len() > 1 {
+        let cb_base_name = if callbacks.len() > 1 {
             format!("call_{}", native_name_str)
         } else {
             let &(ref cb, _) = &callbacks[0];
-            let mut vec = vec![];
-            for x in cb.inputs.to_owned() {
-                vec.push(x);
-            }
+            let vec: Vec<_> = cb.inputs.iter().cloned().collect();
             format!("call_{}", unwrap!(callback_name(&vec.as_slice(), context)))
         };
 
@@ -956,4 +949,55 @@ pub fn generate_struct(
     };
 
     tokens.to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::transform_jni_arg;
+    use syn;
+    use unwrap::unwrap;
+
+    #[test]
+    fn jni_arg_transformation() {
+        let rust_to_jni = [
+            // Primitive types
+            ("x: c_char", "x : jbyte"),
+            ("x: u8", "x : jbyte"),
+            ("x: libc::c_short", "x : jshort"),
+            ("x: u16", "x : jshort"),
+            ("x: libc::c_int", "x : jint"),
+            ("x: u32", "x : jint"),
+            ("x: libc::c_long", "x : jlong"),
+            ("x: u64", "x : jlong"),
+            // String types
+            ("x: *const c_char", "x : JString"),
+            ("x: *mut c_char", "x : JString"),
+            // Object types
+            ("x: *mut Foo", "x : JObject"),
+            ("x: *const Bar", "x : JObject"),
+            // Opaque pointers
+            ("x: *mut App", "x : jlong"),
+            ("x: *const App", "x : jlong"),
+            ("x: *mut Authenticator", "x : jlong"),
+            ("x: *const Authenticator", "x : jlong"),
+            // Callback
+            (
+                "x: extern \"C\" fn(user_data: *const c_void)",
+                "x : JObject",
+            ),
+        ];
+
+        for &(rust_code, expected_jni_code) in &rust_to_jni {
+            let jni_code = match unwrap!(syn::parse_str(rust_code)) {
+                syn::FnArg::Captured(ref arg) => transform_jni_arg(arg),
+                x => panic!("unexpected parse result {:?}", x),
+            };
+            assert_eq!(
+                jni_code.to_string(),
+                expected_jni_code,
+                "unexpected output for '{}'",
+                rust_code
+            );
+        }
+    }
 }
