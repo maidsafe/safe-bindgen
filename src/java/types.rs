@@ -53,7 +53,7 @@ pub fn callback_name(inputs: &[syn::BareFnArg], context: &Context) -> Result<Str
     let mut components = Vec::new();
     let mut inputs = inputs.iter().peekable();
 
-    while let Some(&ref arg) = inputs.next() {
+    while let Some(arg) = inputs.next() {
         if is_user_data_arg_barefn(&arg.clone()) {
             // Skip user_data args
             continue;
@@ -69,7 +69,7 @@ pub fn callback_name(inputs: &[syn::BareFnArg], context: &Context) -> Result<Str
         let mut arg_type = struct_to_java_classname(arg_type);
 
         if is_array_arg_barefn(&arg, inputs.peek().cloned()) {
-            &inputs.next();
+            inputs.next();
             arg_type.push_str("ArrayLen");
         }
 

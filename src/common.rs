@@ -99,20 +99,20 @@ pub fn transform_fnarg_to_argcap(fnarg: &syn::FnArg) -> Option<&syn::ArgCaptured
 pub fn transform_fnarg_to_argcap_option(fnarg: Option<&syn::FnArg>) -> Option<&syn::ArgCaptured> {
     if fnarg.is_some() {
         if let syn::FnArg::Captured(ref argcap) = fnarg.unwrap() {
-            return Some(argcap);
+            Some(argcap)
         } else {
-            return None;
+            None
         }
     } else {
-        return None;
+        None
     }
 }
 
 pub fn take_out_pat(argcappat: &syn::Pat) -> Option<&syn::PatIdent> {
     if let syn::Pat::Ident(ref pat) = argcappat {
-        return Some(pat);
+        Some(pat)
     } else {
-        return None;
+        None
     }
 }
 
@@ -120,55 +120,37 @@ pub fn take_out_ident_from_type(typ: &syn::Type) -> Option<String> {
     match typ {
         syn::Type::Ptr(ref ptr) => {
             let idt = take_out_ident_from_type(&*ptr.elem).unwrap();
-            return Some(idt);
+            Some(idt)
         }
-        syn::Type::Path(path) => return Some(path.to_owned().path.into_token_stream().to_string()),
-        _ => return None,
+        syn::Type::Path(path) => Some(path.to_owned().path.into_token_stream().to_string()),
+        _ => None,
     }
 }
 
 /// Check the function argument is `user_data: *mut c_void`
 pub fn is_user_data_arg(arg: &syn::ArgCaptured) -> bool {
-    let mut flags = (0, 0);
-    if let syn::Pat::Ident(ref pat) = arg.pat {
-        if pat.to_owned().ident.to_string().as_str() == "user_data" {
-            flags.0 = 1;
-        }
+    match arg.pat {
+        syn::Pat::Ident(ref pat) if pat.to_owned().ident.to_string() == "user_data" => {}
+        _ => return false,
     }
-    if let syn::Type::Ptr(ref pat) = arg.ty {
-        if pat.to_owned().into_token_stream().to_string().as_str() == "* mut c_void" {
-            flags.1 = 1;
-        }
-    }
-    if flags == (1, 1) {
-        return true;
-    } else {
-        return false;
+    match arg.ty {
+        syn::Type::Ptr(ref pat) if pat.into_token_stream().to_string() == "* mut c_void" => true,
+        _ => false,
     }
 }
 
 pub fn is_user_data_arg_barefn(arg: &syn::BareFnArg) -> bool {
-    let mut flags = (0, 0);
     if unwrap!(arg.to_owned().name)
         .0
-        .to_owned()
         .into_token_stream()
         .to_string()
-        .to_owned()
-        .as_str()
-        == "user_data"
+        != "user_data"
     {
-        flags.0 = 1;
-    }
-    if let syn::Type::Ptr(ref pat) = arg.ty {
-        if pat.to_owned().into_token_stream().to_string().as_str() == "* mut c_void" {
-            flags.1 = 1;
-        }
-    }
-    if flags == (1, 1) {
-        return true;
-    } else {
         return false;
+    }
+    match arg.ty {
+        syn::Type::Ptr(ref pat) if pat.into_token_stream().to_string() == "* mut c_void" => true,
+        _ => false,
     }
 }
 
@@ -190,9 +172,9 @@ pub fn is_result_arg(arg: &syn::ArgCaptured) -> bool {
         }
     }
     if flags == (1, 1) {
-        return true;
+        true
     } else {
-        return false;
+        false
     }
 }
 

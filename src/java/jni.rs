@@ -424,7 +424,7 @@ fn generate_callback(cb: &syn::TypeBareFn, context: &Context) -> JniCallback {
                 // Pointers
                 syn::Type::Ptr(ref ptr) => {
                     let tokens: proc_macro2::TokenStream;
-                    let mut ty = &*ptr.elem;
+                    let ty = &*ptr.elem;
                     match format!("{}", quote!(#ty)).as_str() {
                         // Opaque ptrs passed as long values
                         "* mut App"

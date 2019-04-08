@@ -168,7 +168,7 @@ impl common::Lang for LangJava {
             *item.to_owned().decl,
             &item.attrs[..],
             &docs,
-            &format!("{}", name),
+            &name,
             outputs,
             &mut self.context,
         )?;
@@ -417,12 +417,11 @@ pub fn transform_native_fn(
 
         // Generate function arguments
         let mut java_type = rust_to_java(&unwrap!(transform_fnarg_to_argcap(arg)).ty, context)?;
-        let mut next_arg: Option<&syn::ArgCaptured>;
-        if fn_args.peek().is_some() {
-            next_arg = Some(unwrap!(transform_fnarg_to_argcap(unwrap!(fn_args.peek()))))
+        let next_arg: Option<&syn::ArgCaptured> = if fn_args.peek().is_some() {
+            Some(unwrap!(transform_fnarg_to_argcap(unwrap!(fn_args.peek()))))
         } else {
-            next_arg = None
-        }
+            None
+        };
         if is_array_arg(unwrap!(transform_fnarg_to_argcap(arg)), next_arg) {
             // Skip the length args - e.g. for a case of `ptr: *const u8, ptr_len: usize`
             // we're going to skip the `len` part.
@@ -517,7 +516,7 @@ pub fn transform_native_fn(
         } else {
             fn_declaration.push_str(&format!("{} \n", quote!(#argcap)));
         }
-        count = count + 1;
+        count += 1;
     }
     fn_declaration.push_str(")");
     let mut jni = format!(
@@ -604,7 +603,7 @@ fn callback_to_java(fn_ty: &syn::TypeBareFn, context: &Context) -> Result<String
         .peekable();
 
     while let Some(arg) = args_iter.next() {
-        let mut arg_name = unwrap!(arg.to_owned().name)
+        let arg_name = unwrap!(arg.to_owned().name)
             .0
             .into_token_stream()
             .to_string();

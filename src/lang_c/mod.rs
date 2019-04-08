@@ -98,8 +98,8 @@ impl LangC {
         for arg in &fn_decl.decl.inputs {
             if let syn::FnArg::Captured(ref argcap) = arg {
                 if let syn::Pat::Ident(ref pat) = argcap.pat {
-                    let mut arg_name = pat.ident.to_owned().to_string();
-                    let mut c_ty = unwrap!(rust_to_c(&argcap.ty, arg_name.as_str()));
+                    let arg_name = pat.ident.to_owned().to_string();
+                    let c_ty = unwrap!(rust_to_c(&argcap.ty, arg_name.as_str()));
                     unwrap!(self.add_dependencies(module, &c_ty.1));
 
                     args.push(c_ty);
@@ -146,7 +146,7 @@ impl LangC {
         };
 
         let mut output = String::new();
-        output.push_str(format!("{}", docs).as_str());
+        output.push_str(&docs);
         output.push_str(&full_declaration);
         output.push_str(";\n\n");
 
@@ -274,7 +274,7 @@ impl Lang for LangC {
         }
 
         let mut buffer = String::new();
-        buffer.push_str(format!("{}", &docs).as_str());
+        buffer.push_str(&docs);
 
         let name = item.ident.to_string();
         buffer.push_str(&format!("typedef struct {}", name));
@@ -293,7 +293,7 @@ impl Lang for LangC {
                 |_| true,
                 |attr| retrieve_docstring(attr, "\t"),
             );
-            buffer.push_str(format!("{}", &docs).as_str());
+            buffer.push_str(&docs);
 
             let name = match field.ident.to_owned() {
                 Some(name) => name.to_string(),
@@ -353,7 +353,7 @@ impl Lang for LangC {
             });
         }
 
-        self.transform_native_fn(&*item, &docs, &format!("{}", name), module, outputs)?;
+        self.transform_native_fn(&*item, &docs, &name, module, outputs)?;
 
         Ok(())
     }
@@ -508,7 +508,7 @@ fn fn_ptr_to_c(fn_ty: &syn::TypeBareFn, inner: &str) -> Result<CType, Error> {
     } else {
         let mut args = vec![];
         for arg in fn_ty.inputs.to_owned() {
-            let mut arg_name1 = &unwrap!(arg.name.to_owned())
+            let arg_name1 = &unwrap!(arg.name.to_owned())
                 .0
                 .into_token_stream()
                 .to_string();

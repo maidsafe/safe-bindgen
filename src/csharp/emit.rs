@@ -532,7 +532,6 @@ fn emit_struct_field(
     }
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(explicit_counter_loop))]
 fn emit_wrapper_function_params(
     writer: &mut IndentedWriter,
     context: &Context,
@@ -566,7 +565,6 @@ fn emit_wrapper_function_params(
     }
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(explicit_counter_loop))]
 fn emit_native_function_params(
     writer: &mut IndentedWriter,
     context: &Context,

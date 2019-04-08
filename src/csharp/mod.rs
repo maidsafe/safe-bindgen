@@ -458,7 +458,7 @@ impl Lang for LangCSharp {
 
         self.functions.push(Snippet {
             docs,
-            name: name,
+            name,
             item: function,
         });
 
