@@ -391,9 +391,9 @@ fn transform_const_array(array: &syn::ExprArray) -> Option<ConstValue> {
     elements.map(ConstValue::Array)
 }
 
-fn transform_const_struct(Struct: &syn::ExprStruct) -> Option<ConstValue> {
-    let name = Struct.to_owned().path.into_token_stream().to_string();
-    let fields: Option<BTreeMap<_, _>> = Struct
+fn transform_const_struct(cs_struct: &syn::ExprStruct) -> Option<ConstValue> {
+    let name = cs_struct.to_owned().path.into_token_stream().to_string();
+    let fields: Option<BTreeMap<_, _>> = cs_struct
         .to_owned()
         .fields
         .into_iter()

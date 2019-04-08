@@ -123,7 +123,6 @@ impl LangC {
         // Generate return type
         let output_type = &fn_decl.decl.output;
         let mut full_declaration = String::new();
-        full_declaration.to_owned();
         match output_type {
             syn::ReturnType::Type(_, ref ty) => {
                 match ty.deref() {

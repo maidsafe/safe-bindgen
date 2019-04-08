@@ -26,13 +26,10 @@ pub fn parse_usetree(usetree: &syn::UseTree) -> Vec<String> {
 pub fn imported_mods(import: &syn::ItemUse) -> Option<Vec<String>> {
     //    let mut imported: Vec<Sti> = Vec::new();
     // If it's not visible it can't be called from C.
-    let mut segments = Vec::new();
-
     if let syn::Visibility::Inherited = import.vis {
         None
     } else {
-        segments = parse_usetree(&import.tree);
-
+        let segments = parse_usetree(&import.tree);
         if &segments[0] == "ffi" {
             Some(segments)
         } else {
