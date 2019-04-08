@@ -354,7 +354,7 @@ fn transform_const_value(expr: &syn::Expr) -> Option<ConstValue> {
         syn::Expr::Lit(ref exprlit) => transform_const_literal(&exprlit.lit),
         syn::Expr::Array(ref array) => transform_const_array(array),
         syn::Expr::Struct(ref s_struct) => transform_const_struct(s_struct),
-        syn::Expr::Reference(ref exprref) => transform_const_value(expr), // FIXME
+        syn::Expr::Reference(syn::ExprReference { ref expr, .. }) => transform_const_value(&expr),
         syn::Expr::Cast(ref exprcast) => transform_const_cast(&*exprcast.expr, &*exprcast.ty),
         _ => None,
     }
