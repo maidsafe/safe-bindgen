@@ -161,13 +161,7 @@ fn anon_rust_to_java(
 
         // Standard pointers.
         syn::Type::Ptr(ref ptr) => {
-            let ty_str = ptr
-                .to_owned()
-                .elem
-                .deref()
-                .to_owned()
-                .into_token_stream()
-                .to_string();
+            let ty_str = ptr.into_token_stream().to_string();
             // Detect strings, which are *const c_char or *mut c_char
             if ty_str.as_str() == "* const c_char" || ty_str.as_str() == "* mut c_char" {
                 return Ok(JavaType::Object("String".into()));
