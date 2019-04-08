@@ -37,4 +37,4 @@ proc-macro2 = "~0.4.27"
 [dev-dependencies]
 colored = "~1.6.0"
 diff = "~0.1.11"
-indoc = "~0.2.3"
+indoc = "~0.3.1"

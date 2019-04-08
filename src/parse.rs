@@ -1,7 +1,8 @@
 //! Functions for actually parsing the source file.
 
-use common::{Lang, Outputs};
-use Error;
+use crate::common::{Lang, Outputs};
+use crate::Error;
+use unwrap::unwrap;
 
 pub fn parse_usetree(usetree: &syn::UseTree) -> Vec<String> {
     let mut modules = Vec::new();

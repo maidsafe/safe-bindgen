@@ -36,7 +36,6 @@
 #![warn(
     trivial_casts,
     trivial_numeric_casts,
-    unused_extern_crates,
     unused_import_braces,
     unused_qualifications
 )]
@@ -50,26 +49,7 @@
 #![allow(missing_docs)]
 #![recursion_limit = "128"]
 
-extern crate toml;
 //#[macro_use]
-extern crate jni;
-extern crate petgraph;
-extern crate proc_macro2;
-extern crate quote;
-extern crate rustfmt;
-
-extern crate syn;
-
-#[cfg(test)]
-extern crate colored;
-#[cfg(test)]
-extern crate diff;
-#[cfg(test)]
-#[macro_use]
-extern crate indoc;
-#[macro_use]
-extern crate unwrap;
-extern crate core;
 
 pub use common::FilterMode;
 use common::{Lang, Outputs};
@@ -85,6 +65,7 @@ use std::io::Error as IoError;
 use std::io::{Read, Write};
 use std::path::{self, Component, Path, PathBuf};
 use syn::export::Span;
+use unwrap::unwrap;
 
 #[cfg(test)]
 #[macro_use]
@@ -132,7 +113,6 @@ impl std::error::Error for Error {
             Level::Warning => "warning",
             Level::Note => "note",
             Level::Help => "help",
-            _ => unreachable!(),
         }
     }
 }

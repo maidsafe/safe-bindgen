@@ -1,10 +1,10 @@
 //! Utilities for emiting fragments of the target language code.
-extern crate inflector;
-use self::inflector::Inflector;
 use super::intermediate::*;
 use super::Context;
-use output::IndentedWriter;
+use crate::output::IndentedWriter;
+use inflector::Inflector;
 use std::fmt::Write;
+use unwrap::unwrap;
 
 const LEN_TYPE: &str = "UIntPtr";
 const LEN_ZERO: &str = "UIntPtr.Zero";

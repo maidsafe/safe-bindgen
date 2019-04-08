@@ -1,8 +1,9 @@
 //! Functions common for all target languages.
 
+use crate::Error;
 use std::collections::hash_map::{Entry, HashMap};
 use syn::export::ToTokens;
-use Error;
+use unwrap::unwrap;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum FilterMode {

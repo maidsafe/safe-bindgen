@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 use syn::export::ToTokens;
+use unwrap::unwrap;
 
 #[derive(Debug)]
 pub enum StructField {

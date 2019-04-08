@@ -3,18 +3,18 @@ mod emit;
 mod intermediate;
 #[cfg(test)]
 mod tests;
-extern crate inflector;
+
 use self::emit::*;
-use self::inflector::Inflector;
 use self::intermediate::*;
-use common::{self, FilterMode, Lang, Outputs};
-use output::IndentedWriter;
+use crate::common::{self, FilterMode, Lang, Outputs};
+use crate::output::IndentedWriter;
+use crate::{Error, Level};
+use inflector::Inflector;
 use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Display, Write};
 use std::mem;
-use Error;
-use Level;
+use unwrap::unwrap;
 
 const INDENT_WIDTH: usize = 2;
 

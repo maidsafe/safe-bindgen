@@ -1,5 +1,6 @@
 use super::*;
-use test_utils::fetch;
+use crate::test_utils::fetch;
+use indoc::indoc;
 
 #[test]
 fn non_repr_c_types_are_ignored() {

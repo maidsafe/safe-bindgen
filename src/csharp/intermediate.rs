@@ -1,10 +1,12 @@
 //! Types and utilities for the intermediate representation between the rust code
 //! and the target language code.
 
-use common;
+use crate::common;
 use std::collections::BTreeMap;
 use std::ops::Deref;
 use syn::export::ToTokens;
+use unwrap::unwrap;
+
 // TODO: replace whit macro with the ? operator one we upgrade to rust 1.22
 macro_rules! try_opt {
     ($e:expr) => {

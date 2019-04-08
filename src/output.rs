@@ -84,6 +84,7 @@ impl Deref for IndentedWriter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use unwrap::unwrap;
 
     #[test]
     fn smoke() {

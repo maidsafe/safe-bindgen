@@ -1,11 +1,11 @@
+use crate::common::{Lang, Outputs};
+use crate::{parse, Error};
 use colored::*;
-use common::{Lang, Outputs};
 use diff;
-use parse;
 use std::collections::HashMap;
 use std::fmt::Write;
 use syn;
-use Error;
+use unwrap::unwrap;
 
 macro_rules! compile {
     ($lang:expr, $rust:tt) => {
@@ -17,7 +17,7 @@ macro_rules! try_compile {
     ($lang:expr, $rust:tt) => {{
         let rust_src = stringify!($rust);
         let rust_src = rust_src[1..rust_src.len() - 1].to_string();
-        use $crate::test_utils;
+        use crate::test_utils;
         test_utils::try_compile($lang, rust_src)
     }};
 }
@@ -26,8 +26,8 @@ macro_rules! try_compile {
 // strings.
 macro_rules! assert_multiline_eq {
     ($left:expr, $right:expr) => {{
-        use $crate::colored::*;
-        use $crate::test_utils::format_diff;
+        use crate::test_utils::format_diff;
+        use colored::*;
 
         let left = $left;
         let right = $right;

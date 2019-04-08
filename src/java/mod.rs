@@ -3,21 +3,21 @@
 mod jni;
 mod types;
 
-use common::{
+use crate::common::{
     self, append_output, check_no_mangle, is_array_arg, is_array_arg_barefn, is_user_data_arg,
     is_user_data_arg_barefn, parse_attr, retrieve_docstring, take_out_pat,
     transform_fnarg_to_argcap, FilterMode, Outputs,
 };
 extern crate inflector;
 use self::inflector::Inflector;
-use java::types::{callback_name, java_type_to_str, rust_to_java, struct_to_java_classname};
-use jni::signature::JavaType;
+use crate::java::types::{callback_name, java_type_to_str, rust_to_java, struct_to_java_classname};
+use crate::struct_field::{transform_struct_fields, StructField};
+use crate::{Error, Level};
+use ::jni::signature::JavaType;
 use quote::*;
-use rustfmt;
+use ::rustfmt;
 use std::collections::{BTreeSet, HashMap, HashSet};
-use struct_field::{transform_struct_fields, StructField};
-use Error;
-use Level;
+use unwrap::unwrap;
 
 pub struct LangJava {
     context: Context,

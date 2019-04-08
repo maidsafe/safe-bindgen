@@ -1,7 +1,8 @@
 use super::types::CType;
-use lang_c::LangC;
-use syn;
-use test_utils::{fetch, ty};
+use crate::lang_c::LangC;
+use crate::test_utils::{fetch, ty};
+use indoc::indoc;
+use unwrap::unwrap;
 
 #[test]
 fn sanitise_id() {

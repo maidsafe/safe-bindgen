@@ -1,10 +1,11 @@
 //! Functions for converting Rust types to Java types.
 
-use common::{is_array_arg_barefn, is_result_arg_barefn, is_user_data_arg_barefn};
-use java::Context;
+use crate::common::{is_array_arg_barefn, is_result_arg_barefn, is_user_data_arg_barefn};
+use crate::java::Context;
+use crate::{Error, Level};
 use jni::signature::{JavaType, Primitive};
 use syn::export::ToTokens;
-use {Error, Level};
+use unwrap::unwrap;
 
 fn primitive_type_to_str(ty: Primitive) -> &'static str {
     match ty {
@@ -269,8 +270,8 @@ pub fn rust_ty_to_java(ty: &str) -> Option<JavaType> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_utils::ty;
     use jni::signature::{JavaType, Primitive};
-    use test_utils::ty;
 
     #[test]
     fn test_rust_to_java() {
