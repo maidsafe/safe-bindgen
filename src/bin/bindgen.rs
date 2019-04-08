@@ -1,13 +1,8 @@
-#[macro_use]
-extern crate clap;
-extern crate jni;
-extern crate safe_bindgen;
-#[macro_use]
-extern crate unwrap;
-
+use clap::{self, crate_version};
 use jni::signature::{JavaType, Primitive};
 use safe_bindgen::{Bindgen, LangC, LangCSharp, LangJava};
 use std::collections::HashMap;
+use unwrap::unwrap;
 
 fn main() {
     let matches = clap::App::new("bindgen")
