@@ -148,7 +148,7 @@ impl common::Lang for LangJava {
             retrieve_docstring(attr, "")
         });
         // If it's not #[no_mangle] then it can't be called from C.
-        if no_mangle {
+        if !no_mangle {
             return Ok(());
         }
         if !common::is_extern(unwrap!(item.to_owned().abi)) {

@@ -436,11 +436,10 @@ impl Lang for LangCSharp {
             common::parse_attr(&item.attrs, common::check_no_mangle, retrieve_docstring);
 
         // Ignore function without #[no_mangle].
-        if no_mangle {
+        if !no_mangle {
             return Ok(());
         }
-
-        if !common::is_extern(unwrap!(item.to_owned().abi)) {
+        if item.abi.is_none() || !common::is_extern(unwrap!(item.to_owned().abi)) {
             return Ok(());
         }
         //TODO: There are no generics in syn's ItemFn

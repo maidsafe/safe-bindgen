@@ -333,7 +333,7 @@ impl Lang for LangC {
         });
 
         // If it's not #[no_mangle] then it can't be called from C.
-        if no_mangle {
+        if !no_mangle {
             return Ok(());
         }
 

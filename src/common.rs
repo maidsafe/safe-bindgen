@@ -84,11 +84,7 @@ pub fn append_output(text: String, file: &str, o: &mut Outputs) {
 
 /// Check the attribute is `#[no_mangle]`.
 pub fn check_no_mangle(attr: &syn::Attribute) -> bool {
-    if attr.tts.to_string() == "no_mangle" {
-        return true;
-    } else {
-        return false;
-    }
+    attr.path.clone().into_token_stream().to_string() == "no_mangle"
 }
 
 pub fn transform_fnarg_to_argcap(fnarg: &syn::FnArg) -> Option<&syn::ArgCaptured> {

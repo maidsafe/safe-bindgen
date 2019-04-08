@@ -437,7 +437,7 @@ fn functions_without_extern_and_no_mangle_are_ignored() {
     });
 
     let actual = fetch(&outputs, "Backend.cs");
-    assert!(actual.is_empty());
+    assert_eq!("", actual, "expected empty output");
 }
 
 #[test]
