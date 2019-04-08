@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use syn::export::ToTokens;
 use unwrap::unwrap;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum StructField {
     Primitive(syn::Field),
     Array {
@@ -65,7 +65,7 @@ pub fn transform_struct_fields(fields: &[syn::Field]) -> Vec<StructField> {
                         },
                     });
                 } else {
-                    match ptr.into_token_stream().to_string().as_str() {
+                    match ptr.elem.clone().into_token_stream().to_string().as_str() {
                         // Strings
                         "c_char" => {
                             results.push(StructField::String(f.clone()));
@@ -109,5 +109,58 @@ fn is_array_meta_field(field: &syn::Field) -> bool {
         ty == "usize" && (ident.ends_with("_len") || ident.ends_with("_cap"))
     } else {
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{transform_struct_fields, StructField};
+    use syn;
+    use unwrap::unwrap;
+
+    #[test]
+    fn transform_fields_primitive() {
+        let s: syn::ItemStruct = unwrap!(syn::parse_str(
+            "struct Foo { a: u64, b: *const c_char, c: *mut c_char }"
+        ));
+        let mut expected_fields = Vec::new();
+
+        let transformed_fields = match s.fields {
+            syn::Fields::Named(ref fields) => {
+                expected_fields.push(StructField::Primitive(fields.named[0].clone()));
+                expected_fields.push(StructField::String(fields.named[1].clone()));
+                expected_fields.push(StructField::String(fields.named[2].clone()));
+
+                transform_struct_fields(&fields.named.iter().cloned().collect::<Vec<_>>())
+            }
+            x => panic!("unexpected parse result: {:?}", x),
+        };
+
+        assert_eq!(transformed_fields, expected_fields);
+    }
+
+    #[test]
+    fn transform_fields_array() {
+        let s: syn::ItemStruct = unwrap!(syn::parse_str(
+            "struct Foo { a: *const Foo, a_len: usize, a_cap: usize }"
+        ));
+        let mut expected_fields = Vec::new();
+
+        let transformed_fields = match s.fields {
+            syn::Fields::Named(ref fields) => {
+                expected_fields.push(StructField::Array {
+                    field: fields.named[0].clone(),
+                    len_field: "a_len".to_string(),
+                    cap_field: Some("a_cap".to_string()),
+                });
+                expected_fields.push(StructField::LenField(fields.named[1].clone()));
+                expected_fields.push(StructField::LenField(fields.named[2].clone()));
+
+                transform_struct_fields(&fields.named.iter().cloned().collect::<Vec<_>>())
+            }
+            x => panic!("unexpected parse result: {:?}", x),
+        };
+
+        assert_eq!(transformed_fields, expected_fields);
     }
 }

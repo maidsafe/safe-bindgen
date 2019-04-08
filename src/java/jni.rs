@@ -355,17 +355,6 @@ pub fn generate_jni_function(
     output
 }
 
-/// Transform `ast::Arg` into an (identifier, type) tuple
-fn transform_arg(arg: &syn::BareFnArg) -> (syn::Ident, syn::Ident) {
-    let name = &unwrap!(arg.to_owned().name).0;
-    let string = format!("{}", quote!(#name));
-    let ident = take_out_ident_from_type(&arg.to_owned().ty).unwrap();
-    (
-        syn::Ident::new(string.as_str(), Span::call_site()),
-        syn::Ident::new(ident.as_str(), Span::call_site()),
-    )
-}
-
 struct JniCallback {
     // Native function call parameters
     args: Vec<proc_macro2::TokenStream>,
@@ -390,7 +379,8 @@ fn generate_callback(cb: &syn::TypeBareFn, context: &Context) -> JniCallback {
         .peekable();
 
     while let Some(arg) = args_iter.next() {
-        let (arg_name, arg_ty) = transform_arg(arg);
+        let arg_name = unwrap!(arg.clone().name).0; // FIXME: get rid of unwrap - use default name if not present
+        let arg_ty = &arg.ty;
 
         jni_cb_inputs.push(quote! { #arg_name: #arg_ty });
         args.push(quote! { #arg_name.into() });
@@ -401,7 +391,9 @@ fn generate_callback(cb: &syn::TypeBareFn, context: &Context) -> JniCallback {
             arg_java_ty.push(JavaType::Array(Box::new(val_java_type)));
 
             if let Some(len_arg) = args_iter.next() {
-                let (len_arg_name, len_arg_ty) = transform_arg(len_arg);
+                let len_arg_name = unwrap!(len_arg.clone().name).0; // FIXME: get rid of unwrap - use default name if not present
+                let len_arg_ty = &len_arg.ty;
+
                 jni_cb_inputs.push(quote! { #len_arg_name: #len_arg_ty });
 
                 stmts.push(quote! {
