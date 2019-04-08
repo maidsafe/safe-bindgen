@@ -226,13 +226,13 @@ pub fn transform_function(func: syn::FnDecl) -> Option<Function> {
 
 pub fn transform_function_param_from_type(fnarg: &syn::BareFnArg) -> Option<(String, Type)> {
     if let Some(ty) = transform_type(&fnarg.ty) {
-        let mut name = String::new();
-        if let syn::BareFnArgName::Named(id) = unwrap!(fnarg.to_owned().name).0 {
-            name.push_str(id.to_owned().to_string().as_str());
-        }
-        return Some((name.to_owned().to_string(), ty));
+        let name = match fnarg.name {
+            Some((ref name, _)) => name.clone().into_token_stream().to_string(),
+            None => "".to_owned(),
+        };
+        Some((name, ty))
     } else {
-        return None;
+        None
     }
 }
 
