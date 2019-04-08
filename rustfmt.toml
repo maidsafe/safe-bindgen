@@ -1,2 +1,1 @@
-reorder_imports = true
-use_try_shorthand = true
+edition = "2018"

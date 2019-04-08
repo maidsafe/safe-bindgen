@@ -14,8 +14,8 @@ use crate::java::types::{callback_name, java_type_to_str, rust_to_java, struct_t
 use crate::struct_field::{transform_struct_fields, StructField};
 use crate::{Error, Level};
 use ::jni::signature::JavaType;
+use ::rustfmt::{self, format_input};
 use quote::*;
-use ::rustfmt;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use unwrap::unwrap;
 
@@ -85,8 +85,7 @@ impl LangJava {
         let mut output: Vec<u8> = Vec::with_capacity(input.len() * 2);
         let mut cfg = rustfmt::config::Config::default();
         cfg.set().write_mode(rustfmt::config::WriteMode::Plain);
-        rustfmt::format_input(rustfmt::Input::Text(input.clone()), &cfg, Some(&mut output))
-            .unwrap();
+        format_input(rustfmt::Input::Text(input.clone()), &cfg, Some(&mut output)).unwrap();
 
         *input = String::from_utf8(output).expect("Invalid Rustfmt output found");
     }
@@ -666,6 +665,14 @@ mod tests {
             get_inputs("fn (user_data: *mut c_void, result: *const FfiResult, b: *const c_char)");
         assert_eq!(
             "CallbackResultString",
+            unwrap!(callback_name(&inputs, &context))
+        );
+
+        let inputs = get_inputs(
+            "fn (user_data: *mut c_void, result: *const FfiResult, a: *const Foo, a_len: usize)",
+        );
+        assert_eq!(
+            "CallbackResultFooArrayLen",
             unwrap!(callback_name(&inputs, &context))
         );
     }

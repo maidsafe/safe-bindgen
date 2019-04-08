@@ -196,12 +196,19 @@ pub fn is_ptr_len_arg(ty: &syn::Type, arg_name: &str) -> bool {
 /// Detect array ptrs and skip the length args - e.g. for a case of
 /// `ptr: *const u8, ptr_len: usize` we're going to skip the `len` part.
 pub fn is_array_arg(arg: &syn::ArgCaptured, next_arg: Option<&syn::ArgCaptured>) -> bool {
-    let pat = unwrap!(take_out_pat(&arg.pat));
-    let name = pat.ident.to_owned().into_token_stream().to_string();
     if let syn::Type::Ptr(ref _typeptr) = arg.ty {
         !is_result_arg(&arg)
             && next_arg
-                .map(|arg| is_ptr_len_arg(&arg.ty, name.as_str()))
+                .map(|arg| {
+                    is_ptr_len_arg(
+                        &arg.ty,
+                        &unwrap!(take_out_pat(&arg.pat))
+                            .ident
+                            .clone()
+                            .into_token_stream()
+                            .to_string(),
+                    )
+                })
                 .unwrap_or(false)
     } else {
         false
@@ -209,16 +216,18 @@ pub fn is_array_arg(arg: &syn::ArgCaptured, next_arg: Option<&syn::ArgCaptured>)
 }
 
 pub fn is_array_arg_barefn(arg: &syn::BareFnArg, next_arg: Option<&syn::BareFnArg>) -> bool {
-    let name = unwrap!(arg.to_owned().name)
-        .0
-        .into_token_stream()
-        .to_string();
-    //    println!("{}",name);
-
     if let syn::Type::Ptr(ref typeptr) = arg.ty {
         !is_result_arg_barefn(&arg)
             && next_arg
-                .map(|arg| is_ptr_len_arg(&arg.ty, name.as_str()))
+                .map(|arg| {
+                    is_ptr_len_arg(
+                        &arg.ty,
+                        &arg.clone()
+                            .name
+                            .map(|(name, _)| name.into_token_stream().to_string())
+                            .unwrap_or_else(|| "".to_string()),
+                    )
+                })
                 .unwrap_or(false)
     } else {
         false
