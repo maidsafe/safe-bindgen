@@ -437,28 +437,32 @@ fn anon_rust_to_c(ty: &syn::Type) -> Result<CType, Error> {
                     .into(),
         }),
         // Fixed-length arrays, converted into pointers.
-        syn::Type::Array(ref ty1) => Ok(CType::Ptr(
-            Box::new(anon_rust_to_c(&*ty1.elem)?),
+        syn::Type::Array(syn::TypeArray { ref elem, .. }) => Ok(CType::Ptr(
+            Box::new(anon_rust_to_c(&*elem)?),
             CPtrType::Const,
         )),
         // Standard pointers.
         syn::Type::Ptr(ref ptr) => ptr_to_c(ptr),
         // Plain old types.
         syn::Type::Path(ref path) => path_to_c(path),
-        // Possibly void, likely not.
-        _ => {
-            let new_type = ty.to_owned().into_token_stream().to_string();
-            if new_type == "()" {
-                // Ok("void".into())
+        // Tuple
+        syn::Type::Tuple(syn::TypeTuple { elems, .. }) => {
+            if elems.is_empty() {
+                // Empty tuple () == void
                 Ok(CType::Void)
             } else {
                 Err(Error {
                     level: Level::Error,
-                    span: None, //NONE FOR NOW
-                    message: format!("bindgen can not handle the type `{}`", new_type),
+                    span: None,
+                    message: format!("bindgen can not handle the type `{:?}`", ty),
                 })
             }
         }
+        ty => Err(Error {
+            level: Level::Error,
+            span: None,
+            message: format!("bindgen can not handle the type `{:?}`", ty),
+        }),
     }
 }
 
