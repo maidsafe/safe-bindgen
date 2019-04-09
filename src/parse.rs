@@ -29,7 +29,10 @@ pub fn imported_mods(import: &syn::ItemUse) -> Option<Vec<String>> {
     if let syn::Visibility::Inherited = import.vis {
         None
     } else {
-        let segments = parse_usetree(&import.tree);
+        let mut segments = parse_usetree(&import.tree);
+        if segments[0] == "crate" {
+            segments.remove(0);
+        }
         if &segments[0] == "ffi" {
             Some(segments)
         } else {
