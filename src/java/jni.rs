@@ -276,10 +276,8 @@ pub fn generate_jni_function(
                 }
 
                 // Native types and others
-                _ => {
+                ref native_ty => {
                     let id = syn::Ident::new(arg_name.as_str(), Span::call_site());
-                    let native_ty =
-                        syn::Ident::new(format!("{}", quote!(ty)).as_str(), Span::call_site());
                     Some(JniArgResult {
                         stmt: quote! {},
                         call_args: vec![quote! { #id as #native_ty }],
