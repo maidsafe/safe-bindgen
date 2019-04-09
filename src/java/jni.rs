@@ -236,7 +236,7 @@ pub fn generate_jni_function(
     let mut jni_fn_inputs = Vec::new();
 
     let mut args_iter = args
-        .into_iter()
+        .iter()
         .filter(|arg| !is_user_data_arg(&unwrap!(transform_fnarg_to_argcap(arg))))
         .peekable();
 
@@ -344,7 +344,7 @@ pub fn generate_jni_function(
     let mut output = String::new();
 
     for attr in attrs {
-        if &attr.to_owned().path.into_token_stream().to_string() == &"cfg".to_string() {
+        if attr.to_owned().path.into_token_stream().to_string() == "cfg" {
             output.push_str(format!("{}", quote!(#attr)).as_str());
             output.push_str("\n");
         }

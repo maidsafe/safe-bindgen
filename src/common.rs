@@ -130,7 +130,7 @@ pub fn take_out_ident_from_type(typ: &syn::Type) -> Option<String> {
 /// Check the function argument is `user_data: *mut c_void`
 pub fn is_user_data_arg(arg: &syn::ArgCaptured) -> bool {
     match arg.pat {
-        syn::Pat::Ident(ref pat) if pat.to_owned().ident.to_string() == "user_data" => {}
+        syn::Pat::Ident(ref pat) if pat.ident == "user_data" => {}
         _ => return false,
     }
     match arg.ty {
@@ -156,25 +156,15 @@ pub fn is_user_data_arg_barefn(arg: &syn::BareFnArg) -> bool {
 
 /// Check the function argument is `result: *const FfiResult`
 pub fn is_result_arg(arg: &syn::ArgCaptured) -> bool {
-    let mut flags = (0, 0);
-    if let syn::Pat::Ident(ref pat) = arg.pat {
-        if pat.ident.to_owned().to_string().as_str() == "result" {
-            flags.0 = 1;
-        } else {
-            flags.0 = 0;
-        }
+    match arg.pat {
+        syn::Pat::Ident(ref pat) if pat.ident == "result" => (),
+        _ => return false,
     }
-    if let syn::Type::Ptr(ref ptr) = arg.ty {
-        if ptr.to_owned().into_token_stream().to_string().as_str() == "*const FfiResult" {
-            flags.1 = 1;
-        } else {
-            flags.0 = 0;
+    match arg.ty {
+        syn::Type::Ptr(ref ptr) if ptr.into_token_stream().to_string() == "*const FfiResult" => {
+            true
         }
-    }
-    if flags == (1, 1) {
-        true
-    } else {
-        false
+        _ => false,
     }
 }
 
@@ -216,7 +206,7 @@ pub fn is_array_arg(arg: &syn::ArgCaptured, next_arg: Option<&syn::ArgCaptured>)
 }
 
 pub fn is_array_arg_barefn(arg: &syn::BareFnArg, next_arg: Option<&syn::BareFnArg>) -> bool {
-    if let syn::Type::Ptr(ref typeptr) = arg.ty {
+    if let syn::Type::Ptr(ref _typeptr) = arg.ty {
         !is_result_arg_barefn(&arg)
             && next_arg
                 .map(|arg| {

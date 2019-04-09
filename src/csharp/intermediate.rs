@@ -264,7 +264,7 @@ pub fn transform_const(ty: &syn::Type, value: &syn::Expr) -> Option<Const> {
 
 pub fn transform_enum(variants: &[syn::Variant]) -> Option<Enum> {
     let variants: Option<Vec<_>> = variants
-        .into_iter()
+        .iter()
         .map(|variant| {
             match variant.fields {
                 syn::Fields::Unit => (),
@@ -317,21 +317,21 @@ pub fn is_user_data(name: &str, ty: &Type) -> bool {
 
 pub fn extract_callbacks(inputs: &[(String, Type)]) -> Vec<&Function> {
     inputs
-        .into_iter()
+        .iter()
         .filter_map(|&(_, ref ty)| extract_callback(ty))
         .collect()
 }
 
 pub fn extract_first_callback(inputs: &[(String, Type)]) -> Option<&Function> {
     inputs
-        .into_iter()
+        .iter()
         .filter_map(|&(_, ref ty)| extract_callback(ty))
         .next()
 }
 
 pub fn num_callbacks(inputs: &[(String, Type)]) -> usize {
     inputs
-        .into_iter()
+        .iter()
         .filter_map(|&(_, ref ty)| extract_callback(ty))
         .count()
 }
@@ -487,7 +487,7 @@ fn transform_ptr_and_len_to_array(
         return None;
     };
 
-    if &ptr_name[0..ptr_index] == &len_name[0..len_index] {
+    if ptr_name[0..ptr_index] == len_name[0..len_index] {
         Some((
             ptr_name[0..ptr_index].to_string(),
             Type::Array(Box::new(elem_ty.clone()), ArraySize::Dynamic),

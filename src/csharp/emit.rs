@@ -429,7 +429,7 @@ fn emit_task_generic_args(
         emit!(writer, "(");
     }
 
-    for (index, &(_, ref ty)) in params[2..].into_iter().enumerate() {
+    for (index, &(_, ref ty)) in params[2..].iter().enumerate() {
         if index > 0 {
             emit!(writer, ", ");
         }
@@ -479,7 +479,7 @@ fn emit_const_value(
         ConstValue::Struct(ref name, ref fields) => {
             emit!(writer, "new {} {{ ", name);
 
-            for (index, (name, value)) in fields.into_iter().enumerate() {
+            for (index, (name, value)) in fields.iter().enumerate() {
                 if index > 0 {
                     emit!(writer, ", ");
                 }
@@ -565,6 +565,7 @@ fn emit_wrapper_function_params(
     }
 }
 
+#[allow(clippy::explicit_counter_loop)]
 fn emit_native_function_params(
     writer: &mut IndentedWriter,
     context: &Context,
@@ -596,7 +597,7 @@ fn emit_native_function_params(
 }
 
 fn emit_callback_params(writer: &mut IndentedWriter, context: &Context, params: &[(String, Type)]) {
-    for (index, &(ref name, ref ty)) in params.into_iter().enumerate() {
+    for (index, &(ref name, ref ty)) in params.iter().enumerate() {
         if index > 0 {
             emit!(writer, ", ");
         }
@@ -821,7 +822,7 @@ fn emit_args(
     offset: usize,
     mode: Mode,
 ) {
-    for (index, &(ref name, ref ty)) in args.into_iter().enumerate() {
+    for (index, &(ref name, ref ty)) in args.iter().enumerate() {
         if index > 0 {
             emit!(writer, ", ");
         }

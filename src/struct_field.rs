@@ -81,7 +81,7 @@ pub fn transform_struct_fields(fields: &[syn::Field]) -> Vec<StructField> {
                 }
             }
 
-            syn::Type::Path(ref path) => {
+            syn::Type::Path(ref _path) => {
                 results.push(if is_array_meta_field(&f) {
                     StructField::LenField(f.clone())
                 } else {
