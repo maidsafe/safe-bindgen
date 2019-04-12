@@ -1,5 +1,12 @@
 # [master]
 
+# [0.12.0] - 2019-04-12
+
+- Switch from a deprecated parsing library `syntex` to `syn`.
+- Fix inconsitencies and bugs in the C# module.
+- Add more tests for Java & JNI modules.
+- Use stable Rust (edition 2018).
+
 # [0.11.0] - 2018-11-15
 
 - Allow to filter symbols in Java bindgen. This can be used for manual reimplementation of
