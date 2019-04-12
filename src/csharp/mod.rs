@@ -16,7 +16,7 @@ use std::fmt::{Display, Write};
 use std::mem;
 use unwrap::unwrap;
 
-const INDENT_WIDTH: usize = 2;
+const INDENT_WIDTH: usize = 4;
 
 pub struct LangCSharp {
     filter: HashSet<String>,
@@ -479,14 +479,14 @@ impl Lang for LangCSharp {
             emitln!(writer, "using System.Threading.Tasks;\n");
             emitln!(
                 writer,
-                "namespace {} {{",
+                "namespace {}\n{{",
                 self.context.functions_section.namespace
             );
             writer.indent();
 
             emitln!(
                 writer,
-                "internal partial class {} : I{} {{",
+                "internal partial class {} : I{}\n{{",
                 self.context.functions_section.class,
                 self.context.functions_section.class
             );
@@ -552,19 +552,19 @@ impl Lang for LangCSharp {
                 emitln!(writer, "using System.Threading.Tasks;\n");
                 emitln!(
                     writer,
-                    "namespace {} {{",
+                    "namespace {}\n{{",
                     self.context.interface_section.namespace
                 );
                 writer.indent();
 
                 emitln!(
                     writer,
-                    "public partial interface {} {{",
+                    "public partial interface {}\n{{",
                     self.context.interface_section.class
                 );
                 writer.indent();
 
-                for snippet in functions {
+                while let Some(snippet) = functions.next() {
                     if num_callbacks(&snippet.item.inputs) <= 1 {
                         emit_wrapper_function_decl(
                             &mut writer,
@@ -574,6 +574,10 @@ impl Lang for LangCSharp {
                             &snippet.item,
                         );
                         emitln!(writer, ";");
+                    }
+
+                    if functions.peek().is_some() {
+                        emitln!(writer, "");
                     }
                 }
 
@@ -599,7 +603,7 @@ impl Lang for LangCSharp {
 
             emitln!(
                 writer,
-                "namespace {} {{",
+                "namespace {}\n{{",
                 self.context.consts_section.namespace
             );
             writer.indent();
@@ -607,7 +611,7 @@ impl Lang for LangCSharp {
             emitln!(writer, "[PublicAPI]");
             emitln!(
                 writer,
-                "public static class {} {{",
+                "public static class {}\n{{",
                 self.context.consts_section.class
             );
             writer.indent();
@@ -646,7 +650,7 @@ impl Lang for LangCSharp {
 
             emitln!(
                 writer,
-                "namespace {} {{",
+                "namespace {}\n{{",
                 self.context.types_section.namespace
             );
             writer.indent();

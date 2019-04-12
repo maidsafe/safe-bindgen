@@ -41,20 +41,22 @@ fn structs() {
          using System.Runtime.InteropServices;
          using JetBrains.Annotations;
 
-         namespace Backend {
-           [PublicAPI]
-           public struct Record {
-             public ulong Id;
-             [MarshalAs(UnmanagedType.U1)]
-             public bool Enabled;
-             [MarshalAs(UnmanagedType.LPStr)]
-             public string Name;
-             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
-             public int[] RandomNumbers;
-             public Widget Widget;
-             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 100)]
-             public Gadget[] Gadgets;
-           }
+         namespace Backend
+         {
+             [PublicAPI]
+             public struct Record
+             {
+                 public ulong Id;
+                 [MarshalAs(UnmanagedType.U1)]
+                 public bool Enabled;
+                 [MarshalAs(UnmanagedType.LPStr)]
+                 public string Name;
+                 [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
+                 public int[] RandomNumbers;
+                 public Widget Widget;
+                 [MarshalAs(UnmanagedType.ByValArray, SizeConst = 100)]
+                 public Gadget[] Gadgets;
+             }
 
          }
          "
@@ -118,71 +120,85 @@ fn native_structs() {
          using System.Collections.Generic;
          using System.Runtime.InteropServices;
          using JetBrains.Annotations;
-
-         namespace Backend {
-           [PublicAPI]
-           public struct Entry {
-             public uint Id;
-             public List<byte> Key;
-             public List<Record> Records;
-
-             internal Entry(EntryNative native) {
-               Id = native.Id;
-               Key = Utils.CopyToByteList(native.KeyPtr, (int) native.KeyLen);
-               Records = Utils.CopyToObjectList<Record>(native.RecordsPtr, \
-                                                        (int) native.RecordsLen);
+         
+         namespace Backend
+         {
+             [PublicAPI]
+             public struct Entry
+             {
+                 public uint Id;
+                 public List<byte> Key;
+                 public List<Record> Records;
+  
+                 internal Entry(EntryNative native)
+                 {
+                     Id = native.Id;
+                     Key = Utils.CopyToByteList(native.KeyPtr, (int)native.KeyLen);
+                     Records = Utils.CopyToObjectList<Record>(native.RecordsPtr, \
+                                                             (int)native.RecordsLen);
+                 }
+  
+                 internal EntryNative ToNative()
+                 {
+                     return new EntryNative
+                     {
+                         Id = Id,
+                         KeyPtr = Utils.CopyFromByteList(Key),
+                         KeyLen = (UIntPtr)(Key?.Count ?? 0),
+                         RecordsPtr = Utils.CopyFromObjectList(Records),
+                         RecordsLen = (UIntPtr)(Records?.Count ?? 0),
+                         RecordsCap = UIntPtr.Zero
+                     };
+                 }
              }
-
-             internal EntryNative ToNative() {
-               return new EntryNative() {
-                 Id = Id,
-                 KeyPtr = Utils.CopyFromByteList(Key),
-                 KeyLen = (UIntPtr) (Key?.Count ?? 0),
-                 RecordsPtr = Utils.CopyFromObjectList(Records),
-                 RecordsLen = (UIntPtr) (Records?.Count ?? 0),
-                 RecordsCap = UIntPtr.Zero
-               };
+  
+             internal struct EntryNative
+             {
+                 public uint Id;
+                 public IntPtr KeyPtr;
+                 public UIntPtr KeyLen;
+                 public IntPtr RecordsPtr;
+                 public UIntPtr RecordsLen;
+  
+                 // ReSharper disable once NotAccessedField.Compiler
+                 public UIntPtr RecordsCap;
+  
+                 internal void Free()
+                 {
+                     Utils.FreeList(ref KeyPtr, ref KeyLen);
+                     Utils.FreeList(ref RecordsPtr, ref RecordsLen);
+                 }
              }
-           }
-
-           internal struct EntryNative {
-             public uint Id;
-             public IntPtr KeyPtr;
-             public UIntPtr KeyLen;
-             public IntPtr RecordsPtr;
-             public UIntPtr RecordsLen;
-             // ReSharper disable once NotAccessedField.Compiler
-             public UIntPtr RecordsCap;
-
-             internal void Free() {
-               Utils.FreeList(ref KeyPtr, ref KeyLen);
-               Utils.FreeList(ref RecordsPtr, ref RecordsLen);
+  
+             [PublicAPI]
+             public struct Wrapper
+             {
+                 public Entry Wrapped;
+  
+                 internal Wrapper(WrapperNative native)
+                 {
+                     Wrapped = new Entry(native.Wrapped);
+                 }
+  
+                 internal WrapperNative ToNative()
+                 {
+                     return new WrapperNative
+                     {
+                         Wrapped = Wrapped.ToNative()
+                     };
+                 }
              }
-           }
-
-           [PublicAPI]
-           public struct Wrapper {
-             public Entry Wrapped;
-
-             internal Wrapper(WrapperNative native) {
-               Wrapped = new Entry(native.Wrapped);
+  
+             internal struct WrapperNative
+             {
+                 public EntryNative Wrapped;
+ 
+                 internal void Free()
+                 {
+                     Wrapped.Free();
+                 }
              }
-
-             internal WrapperNative ToNative() {
-               return new WrapperNative() {
-                 Wrapped = Wrapped.ToNative()
-               };
-             }
-           }
-
-           internal struct WrapperNative {
-             public EntryNative Wrapped;
-
-             internal void Free() {
-               Wrapped.Free();
-             }
-           }
-
+ 
          }
         "
     );
@@ -197,91 +213,99 @@ fn native_structs() {
          using System.Runtime.InteropServices;
          using System.Threading.Tasks;
 
-         namespace Backend {
-           internal partial class Backend : IBackend {
-             #if __IOS__
-             private const string DllName = \"__Internal\";
-             #else
-             private const string DllName = \"backend\";
-             #endif
-
-             public void Fun0(Entry entry) {
-               var entryNative = entry.ToNative();
-               Fun0Native(entryNative);
-               entryNative.Free();
-             }
-
-             [DllImport(DllName, EntryPoint = \"fun0\")]
-             private static extern void Fun0Native(EntryNative entry);
-
-             public void Fun1(ref Entry entry) {
-               var entryNative = entry.ToNative();
-               Fun1Native(ref entryNative);
-               entryNative.Free();
-             }
-
-             [DllImport(DllName, EntryPoint = \"fun1\")]
-             private static extern void Fun1Native(ref EntryNative entry);
-
-             public Task<Entry> Fun2Async() {
-               var (ret, userData) = Utils.PrepareTask<Entry>();
-               Fun2Native(userData, DelegateOnFfiResultEntryCb);
-               return ret;
-             }
-
-             [DllImport(DllName, EntryPoint = \"fun2\")]
-             private static extern void Fun2Native(IntPtr userData, \
-                                                   FfiResultEntryCb cb);
-
-             public Task<List<Entry>> Fun3Async() {
-               var (ret, userData) = Utils.PrepareTask<List<Entry>>();
-               Fun3Native(userData, DelegateOnFfiResultEntryListCb);
-               return ret;
-             }
-
-             [DllImport(DllName, EntryPoint = \"fun3\")]
-             private static extern void Fun3Native(IntPtr userData, FfiResultEntryListCb cb);
-
-             private delegate void FfiResultEntryCb(IntPtr userData, \
-                                                    IntPtr result, \
-                                                    IntPtr entry);
-
-             #if __IOS__
-             [MonoPInvokeCallback(typeof(FfiResultEntryCb))]
-             #endif
-             private static void OnFfiResultEntryCb(IntPtr userData, \
-                                                    IntPtr result, \
-                                                    IntPtr entry) {
-               Utils.CompleteTask(userData, \
-                                  Marshal.PtrToStructure<FfiResult>(result), \
-                                  () => new Entry(Marshal.PtrToStructure<EntryNative>(entry)));
-             }
-
-             private static readonly FfiResultEntryCb DelegateOnFfiResultEntryCb = OnFfiResultEntryCb;
-
-             private delegate void FfiResultEntryListCb(IntPtr userData, \
+         namespace Backend
+         {
+             internal partial class Backend : IBackend
+             {
+                 #if __IOS__
+                 private const string DllName = \"__Internal\";
+                 #else
+                 private const string DllName = \"backend\";
+                 #endif
+    
+                 public void Fun0(Entry entry)
+                 {
+                     var entryNative = entry.ToNative();
+                     Fun0Native(entryNative);
+                     entryNative.Free();
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun0\")]
+                 private static extern void Fun0Native(EntryNative entry);
+    
+                 public void Fun1(ref Entry entry)
+                 {
+                     var entryNative = entry.ToNative();
+                     Fun1Native(ref entryNative);
+                     entryNative.Free();
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun1\")]
+                 private static extern void Fun1Native(ref EntryNative entry);
+    
+                 public Task<Entry> Fun2Async()
+                 {
+                     var (ret, userData) = Utils.PrepareTask<Entry>();
+                     Fun2Native(userData, DelegateOnFfiResultEntryCb);
+                     return ret;
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun2\")]
+                 private static extern void Fun2Native(IntPtr userData, \
+                                                       FfiResultEntryCb cb);
+    
+                 public Task<List<Entry>> Fun3Async()
+                 {
+                     var (ret, userData) = Utils.PrepareTask<List<Entry>>();
+                     Fun3Native(userData, DelegateOnFfiResultEntryListCb);
+                     return ret;
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun3\")]
+                 private static extern void Fun3Native(IntPtr userData, FfiResultEntryListCb cb);
+    
+                 private delegate void FfiResultEntryCb(IntPtr userData, \
                                                         IntPtr result, \
-                                                        IntPtr entriesPtr, \
-                                                        UIntPtr entriesLen);
-
-             #if __IOS__
-             [MonoPInvokeCallback(typeof(FfiResultEntryListCb))]
-             #endif
-             private static void OnFfiResultEntryListCb(IntPtr userData, \
+                                                        IntPtr entry);
+    
+                 #if __IOS__
+                 [MonoPInvokeCallback(typeof(FfiResultEntryCb))]
+                 #endif
+                 private static void OnFfiResultEntryCb(IntPtr userData, \
                                                         IntPtr result, \
-                                                        IntPtr entriesPtr, \
-                                                        UIntPtr entriesLen) {
-               Utils.CompleteTask(\
-                 userData, \
-                 Marshal.PtrToStructure<FfiResult>(result), \
-                 () => Utils.CopyToObjectList<EntryNative>(\
-                   entriesPtr, \
-                   (int) entriesLen).Select(native => new Entry(native)).ToList());
+                                                        IntPtr entry)
+                 {
+                     Utils.CompleteTask(userData, \
+                                      Marshal.PtrToStructure<FfiResult>(result), \
+                                      () => new Entry(Marshal.PtrToStructure<EntryNative>(entry)));
+                 }
+    
+                 private static readonly FfiResultEntryCb DelegateOnFfiResultEntryCb = OnFfiResultEntryCb;
+    
+                 private delegate void FfiResultEntryListCb(IntPtr userData, \
+                                                            IntPtr result, \
+                                                            IntPtr entriesPtr, \
+                                                            UIntPtr entriesLen);
+    
+                 #if __IOS__
+                 [MonoPInvokeCallback(typeof(FfiResultEntryListCb))]
+                 #endif
+                 private static void OnFfiResultEntryListCb(IntPtr userData, \
+                                                            IntPtr result, \
+                                                            IntPtr entriesPtr, \
+                                                            UIntPtr entriesLen)
+                 {
+                     Utils.CompleteTask(\
+                     userData, \
+                     Marshal.PtrToStructure<FfiResult>(result), \
+                     () => Utils.CopyToObjectList<EntryNative>(\
+                       entriesPtr, \
+                       (int)entriesLen).Select(native => new Entry(native)).ToList());
+                 }
+    
+                 private static readonly FfiResultEntryListCb DelegateOnFfiResultEntryListCb = OnFfiResultEntryListCb;
+  
              }
-
-             private static readonly FfiResultEntryListCb DelegateOnFfiResultEntryListCb = OnFfiResultEntryListCb;
-
-           }
          }
         "
     );
@@ -318,14 +342,16 @@ fn type_aliases() {
          using System.Runtime.InteropServices;
          using JetBrains.Annotations;
 
-         namespace Backend {
-           [PublicAPI]
-           public struct Message {
-             public ulong Id;
-             public ulong SenderId;
-             [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
-             public ulong[] ReceiverIds;
-           }
+         namespace Backend
+         {
+             [PublicAPI]
+             public struct Message
+             {
+                 public ulong Id;
+                 public ulong SenderId;
+                 [MarshalAs(UnmanagedType.ByValArray, SizeConst = 10)]
+                 public ulong[] ReceiverIds;
+             }
 
          }
          "
@@ -340,43 +366,47 @@ fn type_aliases() {
          using System.Runtime.InteropServices;
          using System.Threading.Tasks;
 
-         namespace Backend {
-           internal partial class Backend : IBackend {
-             #if __IOS__
-             private const string DllName = \"__Internal\";
-             #else
-             private const string DllName = \"backend\";
-             #endif
-
-             public Task<ulong> FunAsync(ulong id) {
-               var (ret, userData) = Utils.PrepareTask<ulong>();
-               FunNative(id, userData, DelegateOnFfiResultULongCb);
-               return ret;
+         namespace Backend
+         {
+             internal partial class Backend : IBackend
+             {
+                 #if __IOS__
+                 private const string DllName = \"__Internal\";
+                 #else
+                 private const string DllName = \"backend\";
+                 #endif
+    
+                 public Task<ulong> FunAsync(ulong id)
+                 {
+                     var (ret, userData) = Utils.PrepareTask<ulong>();
+                     FunNative(id, userData, DelegateOnFfiResultULongCb);
+                     return ret;
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun\")]
+                 private static extern void FunNative(ulong id, \
+                                                      IntPtr userData, \
+                                                      FfiResultULongCb cb);
+    
+                 private delegate void FfiResultULongCb(IntPtr arg0, \
+                                                        IntPtr arg1, \
+                                                        ulong arg2);
+    
+                 #if __IOS__
+                 [MonoPInvokeCallback(typeof(FfiResultULongCb))]
+                 #endif
+                 private static void OnFfiResultULongCb(IntPtr arg0, \
+                                                        IntPtr arg1, \
+                                                        ulong arg2)
+                 {
+                     Utils.CompleteTask(arg0, \
+                                      Marshal.PtrToStructure<FfiResult>(arg1), \
+                                      () => arg2);
+                 }
+    
+                 private static readonly FfiResultULongCb DelegateOnFfiResultULongCb = OnFfiResultULongCb;
+    
              }
-
-             [DllImport(DllName, EntryPoint = \"fun\")]
-             private static extern void FunNative(ulong id, \
-                                                  IntPtr userData, \
-                                                  FfiResultULongCb cb);
-
-             private delegate void FfiResultULongCb(IntPtr arg0, \
-                                                    IntPtr arg1, \
-                                                    ulong arg2);
-
-             #if __IOS__
-             [MonoPInvokeCallback(typeof(FfiResultULongCb))]
-             #endif
-             private static void OnFfiResultULongCb(IntPtr arg0, \
-                                                    IntPtr arg1, \
-                                                    ulong arg2) {
-               Utils.CompleteTask(arg0, \
-                                  Marshal.PtrToStructure<FfiResult>(arg1), \
-                                  () => arg2);
-             }
-
-             private static readonly FfiResultULongCb DelegateOnFfiResultULongCb = OnFfiResultULongCb;
-
-           }
          }
          "
     );
@@ -407,19 +437,22 @@ fn enums() {
          using System.Runtime.InteropServices;
          using JetBrains.Annotations;
 
-         namespace Backend {
-           [PublicAPI]
-           public enum Mode {
-             ReadOnly,
-             WriteOnly,
-             ReadAndWrite,
-           }
-
-           [PublicAPI]
-           public enum Binary {
-             Zero = 0,
-             One = 1,
-           }
+         namespace Backend
+         {
+             [PublicAPI]
+             public enum Mode
+             {
+                 ReadOnly,
+                 WriteOnly,
+                 ReadAndWrite,
+             }
+  
+             [PublicAPI]
+             public enum Binary
+             {
+                 Zero = 0,
+                 One = 1,
+             }
 
          }
         "
@@ -456,22 +489,25 @@ fn functions_taking_no_callbacks() {
          using System.Runtime.InteropServices;
          using System.Threading.Tasks;
 
-         namespace Backend {
-           internal partial class Backend : IBackend {
-             #if __IOS__
-             private const string DllName = \"__Internal\";
-             #else
-             private const string DllName = \"backend\";
-             #endif
-
-             public void Fun0(ref Engine engine) {
-               Fun0Native(ref engine);
+         namespace Backend
+         {
+             internal partial class Backend : IBackend
+             {
+                 #if __IOS__
+                 private const string DllName = \"__Internal\";
+                 #else
+                 private const string DllName = \"backend\";
+                 #endif
+    
+                 public void Fun0(ref Engine engine)
+                 {
+                     Fun0Native(ref engine);
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun0\")]
+                 private static extern void Fun0Native(ref Engine engine);
+  
              }
-
-             [DllImport(DllName, EntryPoint = \"fun0\")]
-             private static extern void Fun0Native(ref Engine engine);
-
-           }
          }
         "
     );
@@ -500,39 +536,43 @@ fn functions_taking_one_callback() {
          using System.Runtime.InteropServices;
          using System.Threading.Tasks;
 
-         namespace Backend {
-           internal partial class Backend : IBackend {
-             #if __IOS__
-             private const string DllName = \"__Internal\";
-             #else
-             private const string DllName = \"backend\";
-             #endif
-
-             public Task Fun1Async(int num, string name) {
-               var (ret, userData) = Utils.PrepareTask();
-               Fun1Native(num, name, userData, DelegateOnFfiResultCb);
-               return ret;
+         namespace Backend
+         {
+             internal partial class Backend : IBackend
+             {
+                 #if __IOS__
+                 private const string DllName = \"__Internal\";
+                 #else
+                 private const string DllName = \"backend\";
+                 #endif
+    
+                 public Task Fun1Async(int num, string name)
+                 {
+                     var (ret, userData) = Utils.PrepareTask();
+                     Fun1Native(num, name, userData, DelegateOnFfiResultCb);
+                     return ret;
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun1\")]
+                 private static extern void Fun1Native(\
+                   int num, \
+                   [MarshalAs(UnmanagedType.LPStr)] string name, \
+                   IntPtr userData, \
+                   FfiResultCb cb);
+    
+                 private delegate void FfiResultCb(IntPtr userData, IntPtr result);
+    
+                 #if __IOS__
+                 [MonoPInvokeCallback(typeof(FfiResultCb))]
+                 #endif
+                 private static void OnFfiResultCb(IntPtr userData, IntPtr result)
+                 {
+                     Utils.CompleteTask(userData, Marshal.PtrToStructure<FfiResult>(result));
+                 }
+    
+                 private static readonly FfiResultCb DelegateOnFfiResultCb = OnFfiResultCb;
+  
              }
-
-             [DllImport(DllName, EntryPoint = \"fun1\")]
-             private static extern void Fun1Native(\
-               int num, \
-               [MarshalAs(UnmanagedType.LPStr)] string name, \
-               IntPtr userData, \
-               FfiResultCb cb);
-
-             private delegate void FfiResultCb(IntPtr userData, IntPtr result);
-
-             #if __IOS__
-             [MonoPInvokeCallback(typeof(FfiResultCb))]
-             #endif
-             private static void OnFfiResultCb(IntPtr userData, IntPtr result) {
-               Utils.CompleteTask(userData, Marshal.PtrToStructure<FfiResult>(result));
-             }
-
-             private static readonly FfiResultCb DelegateOnFfiResultCb = OnFfiResultCb;
-
-           }
          }
         "
     );
@@ -563,27 +603,29 @@ fn functions_taking_multiple_callbacks() {
          using System.Runtime.InteropServices;
          using System.Threading.Tasks;
 
-         namespace Backend {
-           internal partial class Backend : IBackend {
-             #if __IOS__
-             private const string DllName = \"__Internal\";
-             #else
-             private const string DllName = \"backend\";
-             #endif
-
-             [DllImport(DllName, EntryPoint = \"fun\")]
-             private static extern void FunNative(int input, \
-                                                   IntPtr userData, \
-                                                   NoneCb cb0, \
-                                                   FfiResultIntCb cb1);
-
-             private delegate void FfiResultIntCb(IntPtr userData, \
-                                                   IntPtr result, \
-                                                   int output);
-
-             private delegate void NoneCb(IntPtr userData);
-
-           }
+         namespace Backend
+         {
+             internal partial class Backend : IBackend
+             {
+                 #if __IOS__
+                 private const string DllName = \"__Internal\";
+                 #else
+                 private const string DllName = \"backend\";
+                 #endif
+    
+                 [DllImport(DllName, EntryPoint = \"fun\")]
+                 private static extern void FunNative(int input, \
+                                                       IntPtr userData, \
+                                                       NoneCb cb0, \
+                                                       FfiResultIntCb cb1);
+    
+                 private delegate void FfiResultIntCb(IntPtr userData, \
+                                                       IntPtr result, \
+                                                       int output);
+    
+                 private delegate void NoneCb(IntPtr userData);
+  
+             }
          }
         "
     );
@@ -619,53 +661,59 @@ fn functions_taking_array() {
          using System.Runtime.InteropServices;
          using System.Threading.Tasks;
 
-         namespace Backend {
-           internal partial class Backend : IBackend {
-             #if __IOS__
-             private const string DllName = \"__Internal\";
-             #else
-             private const string DllName = \"backend\";
-             #endif
-
-             public void Fun0(List<byte> data) {
-               Fun0Native(data?.ToArray(), (UIntPtr) (data?.Count ?? 0));
+         namespace Backend
+         {
+             internal partial class Backend : IBackend
+             {
+                 #if __IOS__
+                 private const string DllName = \"__Internal\";
+                 #else
+                 private const string DllName = \"backend\";
+                 #endif
+    
+                 public void Fun0(List<byte> data)
+                 {
+                     Fun0Native(data?.ToArray(), (UIntPtr)(data?.Count ?? 0));
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun0\")]
+                 private static extern void Fun0Native(\
+                   [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] byte[] data, \
+                   UIntPtr dataLen\
+                 );
+    
+                 public void Fun1(List<byte> data)
+                 {
+                     Fun1Native(data?.ToArray(), (UIntPtr)(data?.Count ?? 0));
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun1\")]
+                 private static extern void Fun1Native(\
+                   [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] byte[] data, \
+                   UIntPtr dataLen\
+                 );
+    
+                 public void Fun2(ulong id, List<byte> data)
+                 {
+                     Fun2Native(id, data?.ToArray(), (UIntPtr)(data?.Count ?? 0));
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun2\")]
+                 private static extern void Fun2Native(\
+                   ulong id, \
+                   [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] byte[] data, \
+                   UIntPtr dataLen\
+                 );
+    
+                 public void Fun3(ref FfiResult result, UIntPtr len)
+                 {
+                     Fun3Native(ref result, len);
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun3\")]
+                 private static extern void Fun3Native(ref FfiResult result, UIntPtr len);
+  
              }
-
-             [DllImport(DllName, EntryPoint = \"fun0\")]
-             private static extern void Fun0Native(\
-               [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] byte[] data, \
-               UIntPtr dataLen\
-             );
-
-             public void Fun1(List<byte> data) {
-               Fun1Native(data?.ToArray(), (UIntPtr) (data?.Count ?? 0));
-             }
-
-             [DllImport(DllName, EntryPoint = \"fun1\")]
-             private static extern void Fun1Native(\
-               [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] byte[] data, \
-               UIntPtr dataLen\
-             );
-
-             public void Fun2(ulong id, List<byte> data) {
-               Fun2Native(id, data?.ToArray(), (UIntPtr) (data?.Count ?? 0));
-             }
-
-             [DllImport(DllName, EntryPoint = \"fun2\")]
-             private static extern void Fun2Native(\
-               ulong id, \
-               [MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 2)] byte[] data, \
-               UIntPtr dataLen\
-             );
-
-             public void Fun3(ref FfiResult result, UIntPtr len) {
-               Fun3Native(ref result, len);
-             }
-
-             [DllImport(DllName, EntryPoint = \"fun3\")]
-             private static extern void Fun3Native(ref FfiResult result, UIntPtr len);
-
-           }
          }
         "
     );
@@ -707,70 +755,76 @@ fn functions_taking_callback_taking_const_size_array() {
          using System.Runtime.InteropServices;
          using System.Threading.Tasks;
 
-         namespace Backend {
-           internal partial class Backend : IBackend {
-             #if __IOS__
-             private const string DllName = \"__Internal\";
-             #else
-             private const string DllName = \"backend\";
-             #endif
-
-             public Task<byte[]> Fun2Async() {
-               var (ret, userData) = Utils.PrepareTask<byte[]>();
-               Fun2Native(userData, DelegateOnFfiResultByteArray32Cb);
-               return ret;
+         namespace Backend
+         {
+             internal partial class Backend : IBackend
+             {
+                 #if __IOS__
+                 private const string DllName = \"__Internal\";
+                 #else
+                 private const string DllName = \"backend\";
+                 #endif
+    
+                 public Task<byte[]> Fun2Async()
+                 {
+                     var (ret, userData) = Utils.PrepareTask<byte[]>();
+                     Fun2Native(userData, DelegateOnFfiResultByteArray32Cb);
+                     return ret;
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun2\")]
+                 private static extern void Fun2Native(IntPtr userData, \
+                                                       FfiResultByteArray32Cb cb);
+    
+                 public Task<byte[]> Fun3Async()
+                 {
+                     var (ret, userData) = Utils.PrepareTask<byte[]>();
+                     Fun3Native(userData, DelegateOnFfiResultByteArrayNonceLenCb);
+                     return ret;
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun3\")]
+                 private static extern void Fun3Native(IntPtr userData, \
+                                                       FfiResultByteArrayNonceLenCb cb);
+    
+                 private delegate void FfiResultByteArray32Cb(IntPtr userData, \
+                                                              IntPtr result, \
+                                                              IntPtr key);
+    
+                 #if __IOS__
+                 [MonoPInvokeCallback(typeof(FfiResultByteArray32Cb))]
+                 #endif
+                 private static void OnFfiResultByteArray32Cb(IntPtr userData, \
+                                                              IntPtr result, \
+                                                              IntPtr key)
+                 {
+                     Utils.CompleteTask(userData, \
+                                      Marshal.PtrToStructure<FfiResult>(result), \
+                                      () => Utils.CopyToByteArray(key, 32));
+                 }
+    
+                 private static readonly FfiResultByteArray32Cb DelegateOnFfiResultByteArray32Cb = OnFfiResultByteArray32Cb;
+    
+                 private delegate void FfiResultByteArrayNonceLenCb(IntPtr userData, \
+                                                                    IntPtr result, \
+                                                                    IntPtr nonce);
+    
+                 #if __IOS__
+                 [MonoPInvokeCallback(typeof(FfiResultByteArrayNonceLenCb))]
+                 #endif
+                 private static void OnFfiResultByteArrayNonceLenCb(IntPtr userData, \
+                                                                    IntPtr result, \
+                                                                    IntPtr nonce)
+                 {
+                     Utils.CompleteTask(\
+                     userData, \
+                     Marshal.PtrToStructure<FfiResult>(result), \
+                     () => Utils.CopyToByteArray(nonce, (int)Constants.NonceLen));
+                 }
+    
+                 private static readonly FfiResultByteArrayNonceLenCb DelegateOnFfiResultByteArrayNonceLenCb = OnFfiResultByteArrayNonceLenCb;
+  
              }
-
-             [DllImport(DllName, EntryPoint = \"fun2\")]
-             private static extern void Fun2Native(IntPtr userData, \
-                                                   FfiResultByteArray32Cb cb);
-
-             public Task<byte[]> Fun3Async() {
-               var (ret, userData) = Utils.PrepareTask<byte[]>();
-               Fun3Native(userData, DelegateOnFfiResultByteArrayNonceLenCb);
-               return ret;
-             }
-
-             [DllImport(DllName, EntryPoint = \"fun3\")]
-             private static extern void Fun3Native(IntPtr userData, \
-                                                   FfiResultByteArrayNonceLenCb cb);
-
-             private delegate void FfiResultByteArray32Cb(IntPtr userData, \
-                                                          IntPtr result, \
-                                                          IntPtr key);
-
-             #if __IOS__
-             [MonoPInvokeCallback(typeof(FfiResultByteArray32Cb))]
-             #endif
-             private static void OnFfiResultByteArray32Cb(IntPtr userData, \
-                                                          IntPtr result, \
-                                                          IntPtr key) {
-               Utils.CompleteTask(userData, \
-                                  Marshal.PtrToStructure<FfiResult>(result), \
-                                  () => Utils.CopyToByteArray(key, 32));
-             }
-
-             private static readonly FfiResultByteArray32Cb DelegateOnFfiResultByteArray32Cb = OnFfiResultByteArray32Cb;
-
-             private delegate void FfiResultByteArrayNonceLenCb(IntPtr userData, \
-                                                                IntPtr result, \
-                                                                IntPtr nonce);
-
-             #if __IOS__
-             [MonoPInvokeCallback(typeof(FfiResultByteArrayNonceLenCb))]
-             #endif
-             private static void OnFfiResultByteArrayNonceLenCb(IntPtr userData, \
-                                                                IntPtr result, \
-                                                                IntPtr nonce) {
-               Utils.CompleteTask(\
-                 userData, \
-                 Marshal.PtrToStructure<FfiResult>(result), \
-                 () => Utils.CopyToByteArray(nonce, (int) Constants.NonceLen));
-             }
-
-             private static readonly FfiResultByteArrayNonceLenCb DelegateOnFfiResultByteArrayNonceLenCb = OnFfiResultByteArrayNonceLenCb;
-
-           }
          }
         "
     );
@@ -816,75 +870,81 @@ fn functions_taking_callback_taking_dynamic_array() {
          using System.Runtime.InteropServices;
          using System.Threading.Tasks;
 
-         namespace Backend {
-           internal partial class Backend : IBackend {
-             #if __IOS__
-             private const string DllName = \"__Internal\";
-             #else
-             private const string DllName = \"backend\";
-             #endif
-
-             public Task<List<byte>> Fun0Async() {
-               var (ret, userData) = Utils.PrepareTask<List<byte>>();
-               Fun0Native(userData, DelegateOnFfiResultByteListCb);
-               return ret;
+         namespace Backend
+         {
+             internal partial class Backend : IBackend
+             {
+                 #if __IOS__
+                 private const string DllName = \"__Internal\";
+                 #else
+                 private const string DllName = \"backend\";
+                 #endif
+    
+                 public Task<List<byte>> Fun0Async()
+                 {
+                     var (ret, userData) = Utils.PrepareTask<List<byte>>();
+                     Fun0Native(userData, DelegateOnFfiResultByteListCb);
+                     return ret;
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun0\")]
+                 private static extern void Fun0Native(IntPtr userData, \
+                                                       FfiResultByteListCb cb);
+    
+                 public Task<List<Record>> Fun1Async()
+                 {
+                     var (ret, userData) = Utils.PrepareTask<List<Record>>();
+                     Fun1Native(userData, DelegateOnFfiResultRecordListCb);
+                     return ret;
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun1\")]
+                 private static extern void Fun1Native(IntPtr userData, \
+                                                       FfiResultRecordListCb cb);
+    
+                 private delegate void FfiResultByteListCb(IntPtr userData, \
+                                                           IntPtr result, \
+                                                           IntPtr dataPtr, \
+                                                           UIntPtr dataLen);
+    
+                 #if __IOS__
+                 [MonoPInvokeCallback(typeof(FfiResultByteListCb))]
+                 #endif
+                 private static void OnFfiResultByteListCb(IntPtr userData, \
+                                                           IntPtr result, \
+                                                           IntPtr dataPtr, \
+                                                           UIntPtr dataLen)
+                 {
+                     Utils.CompleteTask(userData, \
+                                      Marshal.PtrToStructure<FfiResult>(result), \
+                                      () => Utils.CopyToByteList(dataPtr, (int)dataLen));
+                 }
+    
+                 private static readonly FfiResultByteListCb DelegateOnFfiResultByteListCb = OnFfiResultByteListCb;
+    
+                 private delegate void FfiResultRecordListCb(IntPtr userData, \
+                                                              IntPtr result, \
+                                                              IntPtr recordsPtr, \
+                                                              UIntPtr recordsLen);
+    
+                 #if __IOS__
+                 [MonoPInvokeCallback(typeof(FfiResultRecordListCb))]
+                 #endif
+                 private static void OnFfiResultRecordListCb(IntPtr userData, \
+                                                             IntPtr result, \
+                                                             IntPtr recordsPtr, \
+                                                             UIntPtr recordsLen)
+                 {
+                     Utils.CompleteTask(userData, \
+                                      Marshal.PtrToStructure<FfiResult>(result), \
+                                      () => Utils.CopyToObjectList<Record>(\
+                                        recordsPtr, \
+                                        (int)recordsLen));
+                 }
+    
+                 private static readonly FfiResultRecordListCb DelegateOnFfiResultRecordListCb = OnFfiResultRecordListCb;
+  
              }
-
-             [DllImport(DllName, EntryPoint = \"fun0\")]
-             private static extern void Fun0Native(IntPtr userData, \
-                                                   FfiResultByteListCb cb);
-
-             public Task<List<Record>> Fun1Async() {
-               var (ret, userData) = Utils.PrepareTask<List<Record>>();
-               Fun1Native(userData, DelegateOnFfiResultRecordListCb);
-               return ret;
-             }
-
-             [DllImport(DllName, EntryPoint = \"fun1\")]
-             private static extern void Fun1Native(IntPtr userData, \
-                                                   FfiResultRecordListCb cb);
-
-             private delegate void FfiResultByteListCb(IntPtr userData, \
-                                                       IntPtr result, \
-                                                       IntPtr dataPtr, \
-                                                       UIntPtr dataLen);
-
-             #if __IOS__
-             [MonoPInvokeCallback(typeof(FfiResultByteListCb))]
-             #endif
-             private static void OnFfiResultByteListCb(IntPtr userData, \
-                                                       IntPtr result, \
-                                                       IntPtr dataPtr, \
-                                                       UIntPtr dataLen) {
-               Utils.CompleteTask(userData, \
-                                  Marshal.PtrToStructure<FfiResult>(result), \
-                                  () => Utils.CopyToByteList(dataPtr, (int) dataLen));
-             }
-
-             private static readonly FfiResultByteListCb DelegateOnFfiResultByteListCb = OnFfiResultByteListCb;
-
-             private delegate void FfiResultRecordListCb(IntPtr userData, \
-                                                          IntPtr result, \
-                                                          IntPtr recordsPtr, \
-                                                          UIntPtr recordsLen);
-
-             #if __IOS__
-             [MonoPInvokeCallback(typeof(FfiResultRecordListCb))]
-             #endif
-             private static void OnFfiResultRecordListCb(IntPtr userData, \
-                                                         IntPtr result, \
-                                                         IntPtr recordsPtr, \
-                                                         UIntPtr recordsLen) {
-               Utils.CompleteTask(userData, \
-                                  Marshal.PtrToStructure<FfiResult>(result), \
-                                  () => Utils.CopyToObjectList<Record>(\
-                                    recordsPtr, \
-                                    (int) recordsLen));
-             }
-
-             private static readonly FfiResultRecordListCb DelegateOnFfiResultRecordListCb = OnFfiResultRecordListCb;
-
-           }
          }
         "
     );
@@ -907,23 +967,26 @@ fn functions_with_return_values() {
          using System.Runtime.InteropServices;
          using System.Threading.Tasks;
 
-         namespace Backend {
-           internal partial class Backend : IBackend {
-             #if __IOS__
-             private const string DllName = \"__Internal\";
-             #else
-             private const string DllName = \"backend\";
-             #endif
-
-             public bool Fun(int arg) {
-               var ret = FunNative(arg);
-               return ret;
+         namespace Backend
+         {
+             internal partial class Backend : IBackend
+             {
+                 #if __IOS__
+                 private const string DllName = \"__Internal\";
+                 #else
+                 private const string DllName = \"backend\";
+                 #endif
+    
+                 public bool Fun(int arg)
+                 {
+                     var ret = FunNative(arg);
+                     return ret;
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun\")]
+                 private static extern bool FunNative(int arg);
+  
              }
-
-             [DllImport(DllName, EntryPoint = \"fun\")]
-             private static extern bool FunNative(int arg);
-
-           }
          }
         "
     );
@@ -946,22 +1009,25 @@ fn functions_taking_out_param() {
          using System.Runtime.InteropServices;
          using System.Threading.Tasks;
 
-         namespace Backend {
-           internal partial class Backend : IBackend {
-             #if __IOS__
-             private const string DllName = \"__Internal\";
-             #else
-             private const string DllName = \"backend\";
-             #endif
-
-             public void Fun(out IntPtr oApp) {
-               FunNative(out oApp);
+         namespace Backend
+         {
+             internal partial class Backend : IBackend
+             {
+                 #if __IOS__
+                 private const string DllName = \"__Internal\";
+                 #else
+                 private const string DllName = \"backend\";
+                 #endif
+    
+                 public void Fun(out IntPtr oApp)
+                 {
+                     FunNative(out oApp);
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun\")]
+                 private static extern void FunNative(out IntPtr oApp);
+  
              }
-
-             [DllImport(DllName, EntryPoint = \"fun\")]
-             private static extern void FunNative(out IntPtr oApp);
-
-           }
          }
         "
     );
@@ -996,19 +1062,21 @@ fn constants() {
         "using System;
          using JetBrains.Annotations;
 
-         namespace Backend {
-           [PublicAPI]
-           public static class Constants {
-             public const int Number = 123;
-             public const string String = \"hello world\";
-             public static readonly byte[] Array = new byte[] { 0, 1, 2, 3 };
-             public static readonly Record StructValue = new Record { \
-                 id = 0, secretCode = \"xyz\" };
-             public static readonly Record StructRef = new Record { \
-                 id = 1, secretCode = \"xyz\" };
-             public const string EmptyStr = \"\";
-             public const byte Custom = 45;
-           }
+         namespace Backend
+         {
+             [PublicAPI]
+             public static class Constants
+             {
+                 public const int Number = 123;
+                 public const string String = \"hello world\";
+                 public static readonly byte[] Array = new byte[] { 0, 1, 2, 3 };
+                 public static readonly Record StructValue = new Record { \
+                     id = 0, secretCode = \"xyz\" };
+                 public static readonly Record StructRef = new Record { \
+                     id = 1, secretCode = \"xyz\" };
+                 public const string EmptyStr = \"\";
+                 public const byte Custom = 45;
+             }
          }
         "
     );
@@ -1040,44 +1108,49 @@ fn arrays() {
          using System.Runtime.InteropServices;
          using System.Threading.Tasks;
 
-         namespace Backend {
-           internal partial class Backend : IBackend {
-             #if __IOS__
-             private const string DllName = \"__Internal\";
-             #else
-             private const string DllName = \"backend\";
-             #endif
-
-             public void Fun0(byte[] a, byte[] b) {
-               Fun0Native(a, b);
+         namespace Backend
+         {
+             internal partial class Backend : IBackend
+             {
+                 #if __IOS__
+                 private const string DllName = \"__Internal\";
+                 #else
+                 private const string DllName = \"backend\";
+                 #endif
+    
+                 public void Fun0(byte[] a, byte[] b)
+                 {
+                     Fun0Native(a, b);
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun0\")]
+                 private static extern void Fun0Native(\
+                   [MarshalAs(UnmanagedType.LPArray, SizeConst = 10)] \
+                   byte[] a, \
+                   [MarshalAs(UnmanagedType.LPArray, SizeConst = (int)Constants.ArraySize)] \
+                   byte[] b);
+    
+                 public void Fun1(byte[] a)
+                 {
+                     Fun1Native(a);
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun1\")]
+                 private static extern void Fun1Native(\
+                   [MarshalAs(UnmanagedType.LPArray, SizeConst = 10)] \
+                   byte[] a);
+    
+                 public void Fun2(byte[] a)
+                 {
+                     Fun2Native(a);
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun2\")]
+                 private static extern void Fun2Native(\
+                   [MarshalAs(UnmanagedType.LPArray, SizeConst = 32)] \
+                   byte[] a);
+  
              }
-
-             [DllImport(DllName, EntryPoint = \"fun0\")]
-             private static extern void Fun0Native(\
-               [MarshalAs(UnmanagedType.LPArray, SizeConst = 10)] \
-               byte[] a, \
-               [MarshalAs(UnmanagedType.LPArray, SizeConst = (int) Constants.ArraySize)] \
-               byte[] b);
-
-             public void Fun1(byte[] a) {
-               Fun1Native(a);
-             }
-
-             [DllImport(DllName, EntryPoint = \"fun1\")]
-             private static extern void Fun1Native(\
-               [MarshalAs(UnmanagedType.LPArray, SizeConst = 10)] \
-               byte[] a);
-
-             public void Fun2(byte[] a) {
-               Fun2Native(a);
-             }
-
-             [DllImport(DllName, EntryPoint = \"fun2\")]
-             private static extern void Fun2Native(\
-               [MarshalAs(UnmanagedType.LPArray, SizeConst = 32)] \
-               byte[] a);
-
-           }
          }
         "
     );
@@ -1107,11 +1180,13 @@ fn opaque_types() {
          using System.Runtime.InteropServices;
          using JetBrains.Annotations;
 
-         namespace Backend {
-           [PublicAPI]
-           public struct Context {
-             public IntPtr Handle;
-           }
+         namespace Backend
+         {
+             [PublicAPI]
+             public struct Context
+             {
+                 public IntPtr Handle;
+             }
 
          }
         "
@@ -1126,22 +1201,25 @@ fn opaque_types() {
          using System.Runtime.InteropServices;
          using System.Threading.Tasks;
 
-         namespace Backend {
-           internal partial class Backend : IBackend {
-             #if __IOS__
-             private const string DllName = \"__Internal\";
-             #else
-             private const string DllName = \"backend\";
-             #endif
+         namespace Backend
+         {
+             internal partial class Backend : IBackend
+             {
+                 #if __IOS__
+                 private const string DllName = \"__Internal\";
+                 #else
+                 private const string DllName = \"backend\";
+                 #endif
+    
+                 public void Fun0(IntPtr handle)
+                 {
+                     Fun0Native(handle);
+                 }
+    
+                 [DllImport(DllName, EntryPoint = \"fun0\")]
+                 private static extern void Fun0Native(IntPtr handle);
 
-             public void Fun0(IntPtr handle) {
-               Fun0Native(handle);
              }
-
-             [DllImport(DllName, EntryPoint = \"fun0\")]
-             private static extern void Fun0Native(IntPtr handle);
-
-           }
          }
         "
     );
@@ -1166,10 +1244,12 @@ fn interface() {
          using System.Collections.Generic;
          using System.Threading.Tasks;
 
-         namespace Backend {
-           public partial interface IBackend {
-             Task FunAsync(bool enabled);
-           }
+         namespace Backend
+         {
+             public partial interface IBackend
+             {
+                 Task FunAsync(bool enabled);
+             }
          }
         "
     );
