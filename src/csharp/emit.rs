@@ -55,7 +55,7 @@ pub fn emit_wrapper_function(
     let return_name = "ret";
 
     emit_wrapper_function_decl(writer, context, "public", name, fun);
-    emitln!(writer, " {{");
+    emitln!(writer, "\n{{");
     writer.indent();
 
     // Convert wrapper structs to native structs.
@@ -101,7 +101,7 @@ pub fn emit_wrapper_function(
             match *ty {
                 Type::Array(_, ArraySize::Dynamic) => emit!(
                     writer,
-                    "{0}?.ToArray(), ({1}) ({0}?.Count ?? 0)",
+                    "{0}?.ToArray(), ({1})({0}?.Count ?? 0)",
                     name,
                     LEN_TYPE
                 ),
@@ -173,7 +173,7 @@ pub fn emit_callback_wrapper(writer: &mut IndentedWriter, context: &Context, cal
     emit_callback_wrapper_name(writer, callback);
     emit!(writer, "(");
     emit_callback_params(writer, context, &callback.inputs);
-    emitln!(writer, ") {{");
+    emitln!(writer, ")\n{{");
     writer.indent();
 
     emit!(writer, "{}.CompleteTask(", &context.utils_section.class);
@@ -227,7 +227,7 @@ pub fn emit_const(writer: &mut IndentedWriter, context: &Context, name: &str, it
 
 pub fn emit_enum(writer: &mut IndentedWriter, context: &Context, name: &str, item: &Enum) {
     emitln!(writer, "[PublicAPI]");
-    emitln!(writer, "public enum {} {{", name);
+    emitln!(writer, "public enum {}\n{{", name);
     writer.indent();
 
     for variant in &item.variants {
@@ -251,7 +251,7 @@ pub fn emit_normal_struct(
     item: &Struct,
 ) {
     emitln!(writer, "[PublicAPI]");
-    emitln!(writer, "public struct {} {{", name);
+    emitln!(writer, "public struct {}\n{{", name);
     writer.indent();
 
     for field in &item.fields {
@@ -269,7 +269,7 @@ pub fn emit_native_struct(
     name: &str,
     item: &Struct,
 ) {
-    emitln!(writer, "internal struct {}Native {{", name);
+    emitln!(writer, "internal struct {}Native\n{{", name);
     writer.indent();
 
     for field in &item.fields {
@@ -279,7 +279,7 @@ pub fn emit_native_struct(
 
     // Emit `Free` method.
     emitln!(writer, "");
-    emitln!(writer, "internal void Free() {{");
+    emitln!(writer, "internal void Free()\n{{");
     writer.indent();
 
     for field in &item.fields {
@@ -311,7 +311,7 @@ pub fn emit_wrapper_struct(
     item: &Struct,
 ) {
     emitln!(writer, "[PublicAPI]");
-    emitln!(writer, "public struct {} {{", name);
+    emitln!(writer, "public struct {}\n{{", name);
     writer.indent();
 
     for field in &item.fields {
@@ -321,7 +321,7 @@ pub fn emit_wrapper_struct(
     emitln!(writer, "");
 
     // Emit constructor.
-    emitln!(writer, "internal {0}({0}Native native) {{", name);
+    emitln!(writer, "internal {0}({0}Native native)\n{{", name);
     writer.indent();
 
     for field in &item.fields {
@@ -331,7 +331,7 @@ pub fn emit_wrapper_struct(
 
         if let Type::Array(ref ty, ArraySize::Dynamic) = field.ty {
             emit_copy_to_utility_name(writer, context, ty, "List");
-            emitln!(writer, "(native.{0}Ptr, (int) native.{0}Len);", name);
+            emitln!(writer, "(native.{0}Ptr, (int)native.{0}Len);", name);
         } else if context.is_native_type(&field.ty) {
             emit!(writer, "new ");
             emit_type(writer, context, &field.ty, Mode::WrapperStruct);
@@ -345,10 +345,10 @@ pub fn emit_wrapper_struct(
     emitln!(writer, "}}\n");
 
     // Emit `ToNative` method.
-    emitln!(writer, "internal {}Native ToNative() {{", name);
+    emitln!(writer, "internal {}Native ToNative()\n{{", name);
     writer.indent();
 
-    emitln!(writer, "return new {}Native() {{", name);
+    emitln!(writer, "return new {}Native\n{{", name);
     writer.indent();
 
     for (index, field) in item.fields.iter().enumerate() {
@@ -358,7 +358,7 @@ pub fn emit_wrapper_struct(
             emit!(writer, "{}Ptr = ", name);
             emit_copy_from_utility_name(writer, context, ty);
             emitln!(writer, "({}),", name);
-            emit!(writer, "{0}Len = ({1}) ({0}?.Count ?? 0)", name, LEN_TYPE);
+            emit!(writer, "{0}Len = ({1})({0}?.Count ?? 0)", name, LEN_TYPE);
 
             if field.has_cap {
                 emitln!(writer, ",");
@@ -517,7 +517,7 @@ fn emit_struct_field(
         if field.has_cap {
             emitln!(
                 writer,
-                "// ReSharper disable once NotAccessedField.Compiler"
+                "\n// ReSharper disable once NotAccessedField.Compiler"
             );
             emitln!(writer, "public {} {}Cap;", LEN_TYPE, name);
         }
@@ -680,7 +680,7 @@ fn emit_array_marshal_as(
     match *size {
         ArraySize::Lit(value) => emit!(writer, ", SizeConst = {}", value),
         ArraySize::Const(ref name) => {
-            emit!(writer, ", SizeConst = (int) ");
+            emit!(writer, ", SizeConst = (int)");
             emit_const_use(writer, context, name);
         }
         ArraySize::Dynamic => {
@@ -842,7 +842,7 @@ fn emit_args(
             Type::User(ref type_name) if context.is_native_name(type_name) => {
                 emit!(writer, "new {}({})", type_name, name);
             }
-            Type::USize => emit!(writer, "(ulong) {}", name),
+            Type::USize => emit!(writer, "(ulong){}", name),
             _ => emit!(writer, "{}", name),
         }
     }
@@ -897,10 +897,10 @@ fn emit_array_use(
     match *size {
         ArraySize::Lit(value) => emit!(writer, "{}", value),
         ArraySize::Const(ref name) => {
-            emit!(writer, "(int) ");
+            emit!(writer, "(int)");
             emit_const_use(writer, context, name);
         }
-        ArraySize::Dynamic => emit!(writer, "(int) {}Len", name),
+        ArraySize::Dynamic => emit!(writer, "(int){}Len", name),
     }
 
     emit!(writer, ")");
