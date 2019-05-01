@@ -24,7 +24,6 @@ pub fn parse_usetree(usetree: &syn::UseTree) -> Vec<String> {
 
 /// Returns a list of FFI submodules imported in a top-level module
 pub fn imported_mods(import: &syn::ItemUse) -> Option<Vec<String>> {
-    //    let mut imported: Vec<Sti> = Vec::new();
     // If it's not visible it can't be called from C.
     if let syn::Visibility::Inherited = import.vis {
         None
