@@ -57,7 +57,7 @@ pub use csharp::LangCSharp;
 pub use errors::Level;
 pub use java::LangJava;
 pub use lang_c::LangC;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::fmt::Display;
 use std::fs;
 use std::fs::File;
@@ -253,12 +253,12 @@ impl Bindgen {
         let mut content = String::new();
         unwrap!(file.read_to_string(&mut content));
         let ast = unwrap!(syn::parse_file(&content));
-        let mut imported: Vec<Vec<String>> = Vec::new();
+        let mut imported: BTreeSet<Vec<String>> = Default::default();
         for item in ast.items {
             match &item {
                 syn::Item::Use(ref itemuse) => {
                     if parse::imported_mods(itemuse).is_some() {
-                        imported.push(unwrap!(parse::imported_mods(itemuse)));
+                        imported.insert(unwrap!(parse::imported_mods(itemuse)));
                     }
                 }
                 // Parsing const in lib.rs for CSharp
