@@ -1,24 +1,20 @@
 //! Functions to generate JNI bindings
-extern crate inflector;
 
-use core::borrow::Borrow;
-use jni::signature::{self, JavaType, Primitive, TypeSignature};
-use proc_macro2;
-use quote::ToTokens;
-use quote::*;
-use unwrap::unwrap;
-
+use super::types::{callback_name, rust_ty_to_java};
+use super::{Context, Outputs};
 use crate::common::{
     append_output, is_array_arg, is_array_arg_barefn, is_user_data_arg, is_user_data_arg_barefn,
     take_out_ident_from_type, take_out_pat, transform_fnarg_to_argcap,
     transform_fnarg_to_argcap_option,
 };
 use crate::struct_field::StructField;
-
-use self::inflector::Inflector;
-use self::proc_macro2::Span;
-use super::types::{callback_name, rust_ty_to_java};
-use super::{Context, Outputs};
+use inflector::Inflector;
+use jni::signature::{self, JavaType, Primitive, TypeSignature};
+use proc_macro2;
+use proc_macro2::Span;
+use quote::ToTokens;
+use quote::*;
+use unwrap::unwrap;
 
 fn to_jni_arg(arg: &syn::ArgCaptured, ty_name: &str) -> proc_macro2::TokenStream {
     let pat = take_out_pat(&arg.pat);
@@ -258,7 +254,7 @@ pub fn generate_jni_function(
                 // Callback
                 syn::Type::BareFn(ref bare_fn) => {
                     callbacks.push((
-                        bare_fn.borrow(),
+                        bare_fn,
                         syn::Ident::new(arg_name.as_str(), Span::call_site()),
                     ));
                     None
@@ -942,14 +938,13 @@ pub fn generate_struct(
 
 #[cfg(test)]
 mod tests {
+    use super::{generate_callback, transform_jni_arg};
     use crate::java::jni::generate_jni_function;
     use crate::java::Context;
-    use core::borrow::BorrowMut;
+    use indoc::indoc;
     use std::collections::HashMap;
     use syn;
     use unwrap::unwrap;
-
-    use super::{generate_callback, transform_jni_arg};
 
     // TODO: add more test cases
     #[test]
@@ -1011,42 +1006,46 @@ mod tests {
         let native_name = "test_dummy_func_name";
         let mut ctx = Context::default();
         let mut dummy_outputs: HashMap<String, String> = HashMap::new();
-        let dummy_func_str = "/// Comments are dumb, we don't need them here.
+        let dummy_func_str = indoc!(
+        "/// Comments are dumb, we don't need them here.
         #[cfg(feature = \"mock-routing\")]
         #[no_mangle]
         pub unsafe extern \"C\" fn test_dummy_func_name(
             dummy_app: *mut App,
             dummy_user_data: *mut c_void,
             dummy_o_cb: extern \"C\" fn(dummy_user_data: *mut c_void, dummy_result: *const FfiResult),
-        ) {}";
-        let test_str = "# [ cfg ( feature = \"mock-routing\" ) ]\n# [ no_mangle ] \
+        ) {}"
+        );
+        let test_str = "# [ cfg ( feature = \"mock-routing\" ) ]\n\
+        # [ no_mangle ] \
         pub unsafe extern \"system\" fn Java_net_maidsafe_dummy_NativeBindings_testDummyFuncName ( \
-        env : JNIEnv , \
-        _class : JClass , \
-        dummy_app : jlong , \
-        dummy_user_data : JObject , \
-        dummy_o_cb : JObject \
+            env : JNIEnv , \
+            _class : JClass , \
+            dummy_app : jlong , \
+            dummy_user_data : JObject , \
+            dummy_o_cb : JObject \
         ) { \
         let dummy_app = dummy_app as * mut App ; \
         let dummy_user_data = jni_unwrap ! ( c_void :: from_java ( & env , dummy_user_data ) ) ; \
         let ctx = gen_ctx ! ( env , dummy_o_cb ) ; \
-        test_dummy_func_name ( dummy_app , & dummy_user_data , ctx , call_CallbackVoidFfiResult ) ; }";
+        test_dummy_func_name ( dummy_app , & dummy_user_data , ctx , call_CallbackVoidFfiResult ) ; }"
+        ;
         let file: syn::File = unwrap!(syn::parse_str(dummy_func_str));
         for item in file.items {
             if let syn::Item::Fn(ref func) = item {
                 let attri = &func.attrs[..];
                 let inputs: Vec<_> = func.decl.inputs.iter().cloned().collect();
-                assert_eq!(
-                    test_str,
-                    generate_jni_function(
-                        inputs.as_slice(),
-                        attri,
-                        native_name,
-                        func_name,
-                        ctx.borrow_mut(),
-                        dummy_outputs.borrow_mut()
-                    )
-                );
+                let string = generate_jni_function(
+                    inputs.as_slice(),
+                    attri,
+                    native_name,
+                    func_name,
+                    &mut ctx,
+                    &mut dummy_outputs,
+                )
+                .clone();
+                println!("{}", string);
+                assert_eq!(test_str, &string);
             }
         }
     }
@@ -1057,38 +1056,40 @@ mod tests {
         let native_name = "test_dummy_func_name";
         let mut ctx = Context::default();
         let mut dummy_outputs: HashMap<String, String> = HashMap::new();
-        let dummy_func_str = "pub unsafe extern \"C\" fn test_dummy_func_name(
-            app: *const App,
-            dummy_int_type: usize,
-            dummy_int_type1: u64,
-            dummy_int_type2: u32,
-            dummy_int_type3: u16,
-            dummy_char_type: *const c_char,
-            dummy_c_type: libc::c_long,
-            dummy_c_type2: libc::c_short,
-            dummy_c_type3: libc::c_int,
-            dummy_user_data: *mut c_void,
-            dummy_opaque_type: *const MDataInfo,
-            dummy_opaque_type2: SignPubKeyHandle,
-            dummy_opaque_type3: FileContextHandle,
-        ) {}";
+        let dummy_func_str = indoc!(
+            "pub unsafe extern \"C\" fn test_dummy_func_name(
+                app: *const App,
+                dummy_int_type: usize,
+                dummy_int_type1: u64,
+                dummy_int_type2: u32,
+                dummy_int_type3: u16,
+                dummy_char_type: *const c_char,
+                dummy_c_type: libc::c_long,
+                dummy_c_type2: libc::c_short,
+                dummy_c_type3: libc::c_int,
+                dummy_user_data: *mut c_void,
+                dummy_opaque_type: *const MDataInfo,
+                dummy_opaque_type2: SignPubKeyHandle,
+                dummy_opaque_type3: FileContextHandle,
+        ) {}"
+        );
         let test_str = "# [ no_mangle ] \
         pub unsafe extern \"system\" fn Java_net_maidsafe_dummy_NativeBindings_testDummyFuncName ( \
-        env : JNIEnv , \
-        _class : JClass , \
-         app : jlong , \
-         dummy_int_type : jlong , \
-         dummy_int_type1 : jlong , \
-         dummy_int_type2 : jint , \
-         dummy_int_type3 : jshort , \
-         dummy_char_type : JString , \
-         dummy_c_type : jlong , \
-         dummy_c_type2 : jshort , \
-         dummy_c_type3 : jint , \
-         dummy_user_data : JObject , \
-         dummy_opaque_type : JObject , \
-         dummy_opaque_type2 : SignPubKeyHandle , \
-         dummy_opaque_type3 : FileContextHandle \
+            env : JNIEnv , \
+            _class : JClass , \
+             app : jlong , \
+             dummy_int_type : jlong , \
+             dummy_int_type1 : jlong , \
+             dummy_int_type2 : jint , \
+             dummy_int_type3 : jshort , \
+             dummy_char_type : JString , \
+             dummy_c_type : jlong , \
+             dummy_c_type2 : jshort , \
+             dummy_c_type3 : jint , \
+             dummy_user_data : JObject , \
+             dummy_opaque_type : JObject , \
+             dummy_opaque_type2 : SignPubKeyHandle , \
+             dummy_opaque_type3 : FileContextHandle \
          ) { \
          let app = app as * mut App ; \
          let dummy_char_type = jni_unwrap ! ( CString :: from_java ( & env , dummy_char_type ) ) ; \
@@ -1119,8 +1120,8 @@ mod tests {
                         attri,
                         native_name,
                         func_name,
-                        ctx.borrow_mut(),
-                        dummy_outputs.borrow_mut()
+                        &mut ctx,
+                        &mut dummy_outputs
                     )
                 );
             }
