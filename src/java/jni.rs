@@ -1005,7 +1005,7 @@ mod tests {
         let func_name = "testDummyFuncName";
         let native_name = "test_dummy_func_name";
         let mut ctx = Context::default();
-        let mut dummy_outputs: HashMap<String, String> = HashMap::new();
+        let mut dummy_outputs = HashMap::new();
         let dummy_func_str = indoc!(
         "/// Comments are dumb, we don't need them here.
         #[cfg(feature = \"mock-routing\")]
@@ -1016,7 +1016,7 @@ mod tests {
             dummy_o_cb: extern \"C\" fn(dummy_user_data: *mut c_void, dummy_result: *const FfiResult),
         ) {}"
         );
-        let test_str = "# [ cfg ( feature = \"mock-routing\" ) ]\n\
+        let expected_jni_str = "# [ cfg ( feature = \"mock-routing\" ) ]\n\
         # [ no_mangle ] \
         pub unsafe extern \"system\" fn Java_net_maidsafe_dummy_NativeBindings_testDummyFuncName ( \
             env : JNIEnv , \
@@ -1033,19 +1033,17 @@ mod tests {
         let file: syn::File = unwrap!(syn::parse_str(dummy_func_str));
         for item in file.items {
             if let syn::Item::Fn(ref func) = item {
-                let attri = &func.attrs[..];
                 let inputs: Vec<_> = func.decl.inputs.iter().cloned().collect();
-                let string = generate_jni_function(
+                let generated_jni_string = generate_jni_function(
                     inputs.as_slice(),
-                    attri,
+                    &func.attrs[..],
                     native_name,
                     func_name,
                     &mut ctx,
                     &mut dummy_outputs,
                 )
                 .clone();
-                println!("{}", string);
-                assert_eq!(test_str, &string);
+                assert_eq!(expected_jni_str, &generated_jni_string);
             }
         }
     }
@@ -1055,7 +1053,7 @@ mod tests {
         let func_name = "testDummyFuncName";
         let native_name = "test_dummy_func_name";
         let mut ctx = Context::default();
-        let mut dummy_outputs: HashMap<String, String> = HashMap::new();
+        let mut dummy_outputs = HashMap::new();
         let dummy_func_str = indoc!(
             "pub unsafe extern \"C\" fn test_dummy_func_name(
                 app: *const App,
@@ -1067,13 +1065,12 @@ mod tests {
                 dummy_c_type: libc::c_long,
                 dummy_c_type2: libc::c_short,
                 dummy_c_type3: libc::c_int,
-                dummy_user_data: *mut c_void,
                 dummy_opaque_type: *const MDataInfo,
                 dummy_opaque_type2: SignPubKeyHandle,
                 dummy_opaque_type3: FileContextHandle,
         ) {}"
         );
-        let test_str = "# [ no_mangle ] \
+        let expected_jni_str = "# [ no_mangle ] \
         pub unsafe extern \"system\" fn Java_net_maidsafe_dummy_NativeBindings_testDummyFuncName ( \
             env : JNIEnv , \
             _class : JClass , \
@@ -1086,14 +1083,12 @@ mod tests {
              dummy_c_type : jlong , \
              dummy_c_type2 : jshort , \
              dummy_c_type3 : jint , \
-             dummy_user_data : JObject , \
              dummy_opaque_type : JObject , \
              dummy_opaque_type2 : SignPubKeyHandle , \
              dummy_opaque_type3 : FileContextHandle \
          ) { \
          let app = app as * mut App ; \
          let dummy_char_type = jni_unwrap ! ( CString :: from_java ( & env , dummy_char_type ) ) ; \
-         let dummy_user_data = jni_unwrap ! ( c_void :: from_java ( & env , dummy_user_data ) ) ; \
          let dummy_opaque_type = jni_unwrap ! ( MDataInfo :: from_java ( & env , dummy_opaque_type ) ) ; \
           test_dummy_func_name ( app , \
                                  dummy_int_type as usize , \
@@ -1104,26 +1099,22 @@ mod tests {
                                  dummy_c_type as libc :: c_long , \
                                  dummy_c_type2 as libc :: c_short , \
                                  dummy_c_type3 as libc :: c_int , \
-                                 & dummy_user_data , \
                                  & dummy_opaque_type , \
                                  dummy_opaque_type2 as SignPubKeyHandle , \
                                  dummy_opaque_type3 as FileContextHandle ) ; }";
         let file: syn::File = unwrap!(syn::parse_str(dummy_func_str));
         for item in file.items {
             if let syn::Item::Fn(ref func) = item {
-                let attri = &func.attrs[..];
                 let inputs: Vec<_> = func.decl.inputs.iter().cloned().collect();
-                assert_eq!(
-                    test_str,
-                    generate_jni_function(
-                        inputs.as_slice(),
-                        attri,
-                        native_name,
-                        func_name,
-                        &mut ctx,
-                        &mut dummy_outputs
-                    )
+                let generated_jni_string = generate_jni_function(
+                    inputs.as_slice(),
+                    &func.attrs[..],
+                    native_name,
+                    func_name,
+                    &mut ctx,
+                    &mut dummy_outputs,
                 );
+                assert_eq!(expected_jni_str, &generated_jni_string);
             }
         }
     }
