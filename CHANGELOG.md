@@ -1,5 +1,9 @@
 # [master]
 
+# [0.13.0] - 2019-05-29
+
+- Update clap dependency to the latest version
+
 # [0.12.0] - 2019-04-12
 
 - Switch from a deprecated parsing library `syntex` to `syn`.
