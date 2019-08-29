@@ -273,7 +273,7 @@ pub fn transform_enum(variants: &[syn::Variant]) -> Option<Enum> {
 
             let (_, docs) = common::parse_attr(&variant.attrs[..], |_| true, retrieve_docstring);
             let name = variant.ident.to_string();
-            let value = extract_enum_variant_value(variant);
+            let value = common::extract_enum_variant_value(variant);
 
             Some(EnumVariant { docs, name, value })
         })
@@ -438,7 +438,7 @@ fn transform_array(ty: &syn::TypeArray, size: &syn::Expr) -> Option<Type> {
 fn extract_array_size(expr: &syn::Expr) -> Option<ArraySize> {
     match expr {
         syn::Expr::Lit(ref lit) => {
-            extract_int_literal(lit).map(|value| ArraySize::Lit(value as usize))
+            common::extract_int_literal(lit).map(|value| ArraySize::Lit(value as usize))
         }
         syn::Expr::Path(ref path) => {
             // Currently supports only unqualified constants.
@@ -540,24 +540,6 @@ fn transform_reference(lifetime: &syn::Lifetime, ty: &syn::Type) -> Option<Type>
         Some(Type::String) => Some(Type::String),
         Some(Type::User(name)) => Some(Type::User(name)),
         _ => None,
-    }
-}
-
-fn extract_enum_variant_value(variant: &syn::Variant) -> Option<i64> {
-    if let Some(ref expr) = variant.discriminant {
-        if let syn::Expr::Lit(ref lit) = expr.1 {
-            return extract_int_literal(lit);
-        }
-    }
-
-    None
-}
-
-fn extract_int_literal(lit: &syn::ExprLit) -> Option<i64> {
-    if let syn::Lit::Int(val) = &lit.lit {
-        Some(val.value() as i64)
-    } else {
-        None
     }
 }
 

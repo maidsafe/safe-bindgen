@@ -286,6 +286,65 @@ fn paths() {
 }
 
 #[test]
+fn enums() {
+    let outputs = compile!(LangC::default(), {
+        #[repr(C)]
+        pub enum Mode {
+            ReadOnly,
+            WriteOnly,
+            ReadAndWrite,
+        }
+
+        #[repr(C)]
+        pub enum Binary {
+            Zero = 0,
+            One = 1,
+            Four = 4,
+        }
+    });
+
+    let actual = fetch(&outputs, ".h");
+    let expected = indoc!(
+        "
+
+         #ifndef bindgen_h
+         #define bindgen_h
+
+
+         #ifdef __cplusplus
+         extern \"C\" {
+         #endif
+
+         #include <stdint.h>
+         #include <stdbool.h>
+
+         typedef enum Mode {
+             Mode_ReadOnly,
+             Mode_WriteOnly,
+             Mode_ReadAndWrite,
+         } Mode;
+
+         typedef enum Binary {
+             Binary_Zero = 0,
+             Binary_One = 1,
+             Binary_Four = 4,
+         } Binary;
+
+
+
+         #ifdef __cplusplus
+         }
+         #endif
+
+
+         #endif
+        "
+    );
+
+    assert_multiline_eq!(actual, expected);
+}
+
+#[test]
 fn async_functions() {
     let outputs = compile!(LangC::default(), {
         #[no_mangle]
