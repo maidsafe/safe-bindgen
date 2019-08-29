@@ -246,12 +246,12 @@ pub fn transform_function_param(fnarg: &syn::FnArg) -> Option<(String, Type)> {
             name.push_str(id.ident.to_owned().to_string().as_str());
         }
         if ty.is_some() {
-            return Some((name, unwrap!(ty)));
+            Some((name, unwrap!(ty)))
         } else {
-            return None;
+            None
         }
     } else {
-        return None;
+        None
     }
 }
 

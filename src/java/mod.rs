@@ -85,9 +85,11 @@ impl LangJava {
         let mut output: Vec<u8> = Vec::with_capacity(input.len() * 2);
         let mut cfg = rustfmt::config::Config::default();
         cfg.set().write_mode(rustfmt::config::WriteMode::Plain);
-        format_input(rustfmt::Input::Text(input.clone()), &cfg, Some(&mut output)).unwrap();
+        let (_summary, _, report) =
+            format_input(rustfmt::Input::Text(input.clone()), &cfg, Some(&mut output)).unwrap();
 
-        *input = String::from_utf8(output).expect("Invalid Rustfmt output found");
+        *input = String::from_utf8(output)
+            .unwrap_or_else(|_| panic!("Invalid Rustfmt output found: {}", report));
     }
 
     /// Adds package info to the NativeBindings Java module and indents lines
@@ -529,9 +531,9 @@ pub fn transform_native_fn(
 
 fn check_type_never(ty: &syn::Type) -> bool {
     if let syn::Type::Never(ref _never) = ty {
-        return true;
+        true
     } else {
-        return false;
+        false
     }
 }
 

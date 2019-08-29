@@ -90,9 +90,9 @@ pub fn check_no_mangle(attr: &syn::Attribute) -> bool {
 
 pub fn transform_fnarg_to_argcap(fnarg: &syn::FnArg) -> Option<&syn::ArgCaptured> {
     if let syn::FnArg::Captured(ref argcap) = fnarg {
-        return Some(argcap);
+        Some(argcap)
     } else {
-        return None;
+        None
     }
 }
 
@@ -224,7 +224,6 @@ pub fn is_array_arg_barefn(arg: &syn::BareFnArg, next_arg: Option<&syn::BareFnAr
     }
 }
 
-///
 /// Check that at least one attribute matches some criteria (usually `#[repr(C)]` or `#[no_mangle]`)
 /// and optionally retrieve a String from it (usually a docstring).
 pub fn parse_attr<C, R>(attrs: &[syn::Attribute], check: C, retrieve: R) -> (bool, String)
@@ -297,8 +296,7 @@ pub fn retrieve_docstring(attr: &syn::Attribute, prepend: &str) -> Option<String
     }
 }
 
-/// Returns whether the calling convention of the function is compatible with
-/// C (i.e. `extern "C"`).
+/// Returns whether the calling convention of the function is compatible with C (i.e. `extern "C"`).
 pub fn is_extern(abi: syn::Abi) -> bool {
     match unwrap!(abi.name).value().as_str() {
         // If it doesn't have a C ABI it can't be called from C.
