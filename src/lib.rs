@@ -52,19 +52,19 @@
 //#[macro_use]
 
 pub use common::FilterMode;
-use common::{Lang, Outputs};
 pub use csharp::LangCSharp;
+pub use errors::Error;
 pub use errors::Level;
 pub use java::LangJava;
 pub use lang_c::LangC;
+
+use common::{Lang, Outputs};
 use std::collections::{BTreeSet, HashMap};
-use std::fmt::Display;
 use std::fs;
 use std::fs::File;
 use std::io::Error as IoError;
 use std::io::{Read, Write};
 use std::path::{self, Component, Path, PathBuf};
-use syn::export::Span;
 use unwrap::unwrap;
 
 #[cfg(test)]
@@ -78,67 +78,6 @@ mod lang_c;
 mod output;
 mod parse;
 mod struct_field;
-
-/// Describes an error encountered by the compiler.
-///
-/// These can be printed nicely using the `Cheddar::print_err` method.
-#[derive(Debug)]
-pub struct Error {
-    pub level: Level,
-    span: Option<Span>,
-    pub message: String,
-}
-
-impl Error {
-    pub fn error(message: &str) -> Self {
-        Error {
-            level: Level::Error,
-            span: None,
-            message: message.to_string(),
-        }
-    }
-}
-
-impl Display for Error {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(formatter, "{}: {}", self.level, self.message)
-    }
-}
-
-impl std::error::Error for Error {
-    fn description(&self) -> &str {
-        match self.level {
-            Level::Bug => "internal error",
-            Level::Fatal | Level::Error => "error",
-            Level::Warning => "warning",
-            Level::Note => "note",
-            Level::Help => "help",
-        }
-    }
-}
-
-impl From<IoError> for Error {
-    fn from(e: IoError) -> Self {
-        Error {
-            level: Level::Fatal,
-            span: None,
-            message: format!("I/O Error: {}", e),
-        }
-    }
-}
-
-impl From<Error> for Vec<Error> {
-    fn from(e: Error) -> Self {
-        vec![e]
-    }
-}
-
-impl Error {
-    fn print(&self) {
-        // TODO: improve error output, add spans where needed
-        println!("{:?}, {}: {}", self.span, self.level, self.message);
-    }
-}
 
 enum Input {
     File(PathBuf),

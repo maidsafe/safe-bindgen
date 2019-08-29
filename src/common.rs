@@ -274,7 +274,7 @@ pub fn check_repr_c(attr: &syn::Attribute) -> bool {
     }
 }
 
-/// If the attribute is  a docstring, indent it the required amount and return it.
+/// If the attribute is a docstring, indent it the required amount and return it.
 pub fn retrieve_docstring(attr: &syn::Attribute, prepend: &str) -> Option<String> {
     match unwrap!(attr.parse_meta()) {
         syn::Meta::NameValue(ref val)
@@ -303,4 +303,24 @@ pub fn is_extern(abi: syn::Abi) -> bool {
         "C" | "Cdecl" | "Stdcall" | "Fastcall" | "System" => true,
         _ => false,
     }
+}
+
+/// Extracts the int literal from the expression, if it exists.
+pub fn extract_int_literal(lit: &syn::ExprLit) -> Option<i64> {
+    if let syn::Lit::Int(val) = &lit.lit {
+        Some(val.value() as i64)
+    } else {
+        None
+    }
+}
+
+/// Extracts the enum variant value/discriminant, if it exists.
+pub fn extract_enum_variant_value(variant: &syn::Variant) -> Option<i64> {
+    if let Some(ref expr) = variant.discriminant {
+        if let syn::Expr::Lit(ref lit) = expr.1 {
+            return extract_int_literal(lit);
+        }
+    }
+
+    None
 }

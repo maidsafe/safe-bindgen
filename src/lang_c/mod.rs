@@ -5,9 +5,7 @@ mod tests;
 mod types;
 
 use self::types::{CPtrType, CType, CTypeNamed};
-use crate::common::{
-    append_output, check_no_mangle, check_repr_c, parse_attr, retrieve_docstring, Lang, Outputs,
-};
+use crate::common::{self, Lang, Outputs};
 use crate::{Error, Level};
 use petgraph::{algo, Graph};
 use std::collections::btree_map::Entry;
@@ -75,7 +73,7 @@ impl LangC {
         outputs: &mut Outputs,
     ) -> Result<(), Error> {
         let header = header_name(module, &self.lib_name)?;
-        append_output(buffer, &header, outputs);
+        common::append_output(buffer, &header, outputs);
         Ok(())
     }
 
@@ -149,7 +147,7 @@ impl LangC {
         output.push_str(&full_declaration);
         output.push_str(";\n\n");
 
-        append_output(output, &header_name(module, &self.lib_name)?, outputs);
+        common::append_output(output, &header_name(module, &self.lib_name)?, outputs);
 
         Ok(())
     }
@@ -171,10 +169,10 @@ impl Lang for LangC {
         module: &[String],
         outputs: &mut Outputs,
     ) -> Result<(), Error> {
-        let (_, docs) = parse_attr(
+        let (_, docs) = common::parse_attr(
             &item.attrs[..],
             |_| true,
-            |attr| retrieve_docstring(attr, ""),
+            |attr| common::retrieve_docstring(attr, ""),
         );
 
         let mut buffer = String::new();
@@ -197,7 +195,7 @@ impl Lang for LangC {
         Ok(())
     }
 
-    /// Convert a Rust enum into a C enum.
+    /// Converts a Rust enum into a C enum.
     ///
     /// The Rust enum must be marked with `#[repr(C)]` and must be public otherwise the function
     /// will abort.
@@ -209,8 +207,8 @@ impl Lang for LangC {
         module: &[String],
         outputs: &mut Outputs,
     ) -> Result<(), Error> {
-        let (repr_c, docs) = parse_attr(&item.attrs[..], check_repr_c, |attr| {
-            retrieve_docstring(attr, "")
+        let (repr_c, docs) = common::parse_attr(&item.attrs[..], common::check_repr_c, |attr| {
+            common::retrieve_docstring(attr, "")
         });
         // If it's not #[repr(C)] then it can't be called from C.
         if !repr_c {
@@ -222,15 +220,13 @@ impl Lang for LangC {
 
         let name = item.ident.to_string();
         buffer.push_str(&format!("typedef enum {} {{\n", name));
+
+        // Error if generic parameters are encountered.
         if !item.generics.params.is_empty() {
-            return Err(Error {
-                level: Level::Error,
-                span: None, //NONE FOR NOW
-                message: "bindgen can not handle parameterized `#[repr(C)]` enums".into(),
-            });
+            return Err(Error::unsupported_generics_error("enums"));
         }
-        for var in item.variants.to_owned() {
-            if syn::Fields::Unit == var.fields {
+        for variant in item.variants.to_owned() {
+            if syn::Fields::Unit != variant.fields {
                 return Err(Error {
                     level: Level::Error,
                     span: None, //NONE FOR NOW
@@ -239,10 +235,20 @@ impl Lang for LangC {
                 });
             }
 
-            let (_, docs) = parse_attr(&var.attrs, |_| true, |attr| retrieve_docstring(attr, "\t"));
+            let (_, docs) = common::parse_attr(
+                &variant.attrs,
+                |_| true,
+                |attr| common::retrieve_docstring(attr, "    "),
+            );
             buffer.push_str(&docs);
-            //TODO: Must be verified
-            buffer.push_str(&format!("\t{}_{},\n", name, var.ident.to_string()));
+
+            let name = format!("{}_{}", name, variant.ident.to_string());
+            let enum_line = if let Some(value) = common::extract_enum_variant_value(&variant) {
+                format!("    {} = {},\n", name, value)
+            } else {
+                format!("    {},\n", name)
+            };
+            buffer.push_str(&enum_line);
         }
 
         buffer.push_str(&format!("}} {};\n\n", name));
@@ -263,8 +269,8 @@ impl Lang for LangC {
         module: &[String],
         outputs: &mut Outputs,
     ) -> Result<(), Error> {
-        let (repr_c, docs) = parse_attr(&item.attrs[..], check_repr_c, |attr| {
-            retrieve_docstring(attr, "")
+        let (repr_c, docs) = common::parse_attr(&item.attrs[..], common::check_repr_c, |attr| {
+            common::retrieve_docstring(attr, "")
         });
 
         // If it's not #[repr(C)] then it can't be called from C.
@@ -279,18 +285,14 @@ impl Lang for LangC {
         buffer.push_str(&format!("typedef struct {}", name));
 
         if !item.generics.params.is_empty() {
-            return Err(Error {
-                level: Level::Error,
-                span: None, //NONE FOR NOW
-                message: "bindgen can not handle parameterized `#[repr(C)]` structs".into(),
-            });
+            return Err(Error::unsupported_generics_error("structs"));
         }
         buffer.push_str(" {\n");
         for field in item.fields.iter() {
-            let (_, docs) = parse_attr(
+            let (_, docs) = common::parse_attr(
                 &field.attrs[..],
                 |_| true,
-                |attr| retrieve_docstring(attr, "\t"),
+                |attr| common::retrieve_docstring(attr, "    "),
             );
             buffer.push_str(&docs);
 
@@ -301,7 +303,7 @@ impl Lang for LangC {
 
             let ty = rust_to_c(&field.ty, &name)?;
             self.add_dependencies(module, &ty.1)?;
-            buffer.push_str(&format!("\t{};\n", ty));
+            buffer.push_str(&format!("    {};\n", ty));
         }
         buffer.push_str("}");
 
@@ -326,9 +328,10 @@ impl Lang for LangC {
         module: &[String],
         outputs: &mut Outputs,
     ) -> Result<(), Error> {
-        let (no_mangle, docs) = parse_attr(&item.attrs[..], check_no_mangle, |attr| {
-            retrieve_docstring(attr, "")
-        });
+        let (no_mangle, docs) =
+            common::parse_attr(&item.attrs[..], common::check_no_mangle, |attr| {
+                common::retrieve_docstring(attr, "")
+            });
 
         // If it's not #[no_mangle] then it can't be called from C.
         if !no_mangle {
@@ -345,11 +348,7 @@ impl Lang for LangC {
         }
 
         if !item.decl.generics.params.is_empty() {
-            return Err(Error {
-                level: Level::Error,
-                span: None, //NONE FOR NOW
-                message: "bindgen can not handle parameterized extern functions".into(),
-            });
+            return Err(Error::unsupported_generics_error("extern function"));
         }
 
         self.transform_native_fn(&*item, &docs, &name, module, outputs)?;

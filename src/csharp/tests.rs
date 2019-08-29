@@ -446,7 +446,7 @@ fn enums() {
                  WriteOnly,
                  ReadAndWrite,
              }
-  
+
              [PublicAPI]
              public enum Binary
              {

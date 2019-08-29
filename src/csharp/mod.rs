@@ -342,6 +342,12 @@ impl Lang for LangCSharp {
         Ok(())
     }
 
+    /// Converts a Rust enum into a C# enum.
+    ///
+    /// The Rust enum must be marked with `#[repr(C)]` and must be public otherwise the function
+    /// will abort.
+    ///
+    /// Bindgen will error if the enum is generic or if it contains non-unit variants.
     fn parse_enum(
         &mut self,
         item: &syn::ItemEnum,
@@ -361,14 +367,12 @@ impl Lang for LangCSharp {
             return Ok(());
         }
 
+        // Error if generic parameters are encountered.
         if !item.generics.params.is_empty() {
-            return Err(unsupported_generics_error("enums"));
+            return Err(Error::unsupported_generics_error("enums"));
         }
-        let mut var = Vec::new();
-        for variant in item.to_owned().variants {
-            var.push(variant);
-        }
-        let item = transform_enum(&var.as_slice()).ok_or_else(|| Error {
+        let vars: Vec<_> = item.to_owned().variants.into_iter().collect();
+        let item = transform_enum(vars.as_slice()).ok_or_else(|| Error {
             level: Level::Error,
             span: None, //NONE FOR NOW
             message: format!("bindgen can not handle enum {}", item.ident.to_string()),
@@ -399,7 +403,7 @@ impl Lang for LangCSharp {
         }
 
         if !item.generics.params.is_empty() {
-            return Err(unsupported_generics_error("structs"));
+            return Err(Error::unsupported_generics_error("structs"));
         }
         //TODO: syn doesn't have support for StructVariants
         //            if   {
@@ -762,12 +766,4 @@ fn callback_wrapper_name(callback: &Function) -> String {
     let mut writer = IndentedWriter::new(INDENT_WIDTH);
     emit_callback_wrapper_name(&mut writer, callback);
     writer.into_inner()
-}
-
-fn unsupported_generics_error(name: &str) -> Error {
-    Error {
-        level: Level::Error,
-        span: None, //NONE FOR NOW
-        message: format!("bindgen can not handle parameterized {}", name),
-    }
 }
