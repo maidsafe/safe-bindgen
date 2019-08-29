@@ -202,7 +202,7 @@ impl Lang for LangC {
     /// The Rust enum must be marked with `#[repr(C)]` and must be public otherwise the function
     /// will abort.
     ///
-    /// Bindgen will error if the enum if generic or if it contains non-unit variants.
+    /// Bindgen will error if the enum is generic or if it contains non-unit variants.
     fn parse_enum(
         &mut self,
         item: &syn::ItemEnum,
