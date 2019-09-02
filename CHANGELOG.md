@@ -1,5 +1,9 @@
 # [master]
 
+# [0.13.1] - 2019-09-02
+
+- Fix C parser erroring on enum variants with values
+
 # [0.13.0] - 2019-05-29
 
 - Update clap dependency to the latest version
