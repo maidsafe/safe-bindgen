@@ -132,6 +132,33 @@ impl LangJava {
 }
 
 impl common::Lang for LangJava {
+    fn parse_const(
+        &mut self,
+        _item: &syn::ItemConst,
+        _module: &[String],
+        _outputs: &mut Outputs,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn parse_ty(
+        &mut self,
+        _item: &syn::ItemType,
+        _module: &[String],
+        _outputs: &mut Outputs,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn parse_enum(
+        &mut self,
+        _item: &syn::ItemEnum,
+        _module: &[String],
+        _outputs: &mut Outputs,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+
     /// Convert a Rust function declaration into Java.
     fn parse_fn(
         &mut self,
