@@ -8,13 +8,12 @@ use crate::common::{
     is_user_data_arg_barefn, parse_attr, retrieve_docstring, take_out_pat,
     transform_fnarg_to_argcap, FilterMode, Outputs,
 };
-extern crate inflector;
-use self::inflector::Inflector;
 use crate::java::types::{callback_name, java_type_to_str, rust_to_java, struct_to_java_classname};
 use crate::struct_field::{transform_struct_fields, StructField};
 use crate::{Error, Level};
 use ::jni::signature::JavaType;
 use ::rustfmt::{self, format_input};
+use inflector::Inflector;
 use quote::*;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use unwrap::unwrap;

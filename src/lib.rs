@@ -8,48 +8,23 @@
     html_favicon_url = "http://maidsafe.net/img/favicon.ico",
     test(attr(forbid(warnings)))
 )]
-// For explanation of lint checks, run `rustc -W help` or see
-// https://github.com/maidsafe/QA/blob/master/Documentation/Rust%20Lint%20Checks.md
-#![forbid(
-    exceeding_bitshifts,
-    mutable_transmutes,
-    no_mangle_const_items,
-    unknown_crate_types
-)]
-#![deny(
-    deprecated,
-    improper_ctypes,
-    non_shorthand_field_patterns,
-    overflowing_literals,
-    plugin_as_library,
-    stable_features,
-    unconditional_recursion,
-    unknown_lints,
-    unsafe_code,
-    unused_allocation,
-    unused_attributes,
-    unused_comparisons,
-    unused_features,
-    unused_parens,
-    while_true
-)]
+// For explanation of lint checks, run `rustc -W help`.
+#![deny(unsafe_code)]
 #![warn(
+    // TODO: add missing debug implementations for structs?
+    // missing_debug_implementations,
     trivial_casts,
     trivial_numeric_casts,
+    unused_extern_crates,
     unused_import_braces,
-    unused_qualifications
+    unused_qualifications,
 )]
 #![allow(
-    box_pointers,
-    missing_copy_implementations,
-    missing_debug_implementations,
-    variant_size_differences
+    // TODO: fix and add to warn section
+    missing_docs,
+    // TODO: fix and add to warn section
+    unused_results
 )]
-// FIXME: add documentation and deny `missing_documentation`
-#![allow(missing_docs)]
-#![recursion_limit = "128"]
-
-//#[macro_use]
 
 pub use common::FilterMode;
 pub use csharp::LangCSharp;
