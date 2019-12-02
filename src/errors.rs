@@ -31,7 +31,7 @@ impl Error {
         Self {
             level: Level::Error,
             span: None, //NONE FOR NOW
-            message: format!("bindgen can not handle parameterized {}", name),
+            message: format!("bindgen cannot handle parameterized {}", name),
         }
     }
 }

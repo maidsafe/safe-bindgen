@@ -311,7 +311,7 @@ impl Lang for LangCSharp {
         let ty = transform_type(&*item.ty).ok_or_else(|| Error {
             level: Level::Error,
             span: None, //NONE FOR NOW
-            message: format!("bindgen can not handle the type `{}`", name),
+            message: format!("bindgen cannot handle the type `{}`", name),
         })?;
 
         self.aliases.insert(name, ty);
@@ -334,7 +334,7 @@ impl Lang for LangCSharp {
         let item = transform_const(&*item.ty, &*item.expr).ok_or_else(|| Error {
             level: Level::Error,
             span: None, //NONE FOR NOW
-            message: format!("bindgen can not handle constant {}", name),
+            message: format!("bindgen cannot handle constant {}", name),
         })?;
 
         self.consts.push(Snippet { docs, name, item });
@@ -375,7 +375,7 @@ impl Lang for LangCSharp {
         let item = transform_enum(vars.as_slice()).ok_or_else(|| Error {
             level: Level::Error,
             span: None, //NONE FOR NOW
-            message: format!("bindgen can not handle enum {}", item.ident.to_string()),
+            message: format!("bindgen cannot handle enum {}", item.ident.to_string()),
         })?;
 
         self.enums.push(Snippet { docs, name, item });
@@ -410,14 +410,14 @@ impl Lang for LangCSharp {
         //                return Err(Error {
         //                    level: Level::Error,
         //                    span: Some(item.span),
-        //                    message: format!("bindgen can not handle unit or tuple structs ({})", name),
+        //                    message: format!("bindgen cannot handle unit or tuple structs ({})", name),
         //                });
         //            }
 
         let item = transform_struct(item.to_owned().fields).ok_or_else(|| Error {
             level: Level::Error,
             span: None, //NONE FOR NOW
-            message: format!("bindgen can not handle struct {}", item.ident.to_string()),
+            message: format!("bindgen cannot handle struct {}", item.ident.to_string()),
         })?;
         let name = name.to_string();
         self.structs.push(Snippet { docs, name, item });
@@ -456,7 +456,7 @@ impl Lang for LangCSharp {
             Error {
                 level: Level::Error,
                 span: None, //NONE FOR NOW
-                message: format!("bindgen can not handle function {}", string),
+                message: format!("bindgen cannot handle function {}", string),
             }
         })?;
 
