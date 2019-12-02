@@ -160,6 +160,15 @@ impl Default for LangC {
 }
 
 impl Lang for LangC {
+    fn parse_const(
+        &mut self,
+        _item: &syn::ItemConst,
+        _module: &[String],
+        _outputs: &mut Outputs,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
+
     /// Convert `pub type A = B;` into `typedef B A;`.
     ///
     /// Aborts if A is generic.

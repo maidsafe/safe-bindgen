@@ -20,57 +20,45 @@ pub trait Lang {
     /// language constant.
     fn parse_const(
         &mut self,
-        _item: &syn::ItemConst,
-        _module: &[String],
-        _outputs: &mut Outputs,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
+        item: &syn::ItemConst,
+        module: &[String],
+        outputs: &mut Outputs,
+    ) -> Result<(), Error>;
 
-    /// Convert `pub type A = B;` into `typedef B A;`.
+    /// Convert `pub type A = B;` into a target language type definition.
     fn parse_ty(
         &mut self,
-        _item: &syn::ItemType,
-        _module: &[String],
-        _outputs: &mut Outputs,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
+        item: &syn::ItemType,
+        module: &[String],
+        outputs: &mut Outputs,
+    ) -> Result<(), Error>;
 
     /// Convert a Rust enum into a target language enum.
     fn parse_enum(
         &mut self,
-        _item: &syn::ItemEnum,
-        _module: &[String],
-        _outputs: &mut Outputs,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
+        item: &syn::ItemEnum,
+        module: &[String],
+        outputs: &mut Outputs,
+    ) -> Result<(), Error>;
 
     /// Convert a Rust struct into a target language struct.
     fn parse_struct(
         &mut self,
-        _item: &syn::ItemStruct,
-        _module: &[String],
-        _outputs: &mut Outputs,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
+        item: &syn::ItemStruct,
+        module: &[String],
+        outputs: &mut Outputs,
+    ) -> Result<(), Error>;
 
     /// Convert a Rust function declaration into a target language function declaration.
     fn parse_fn(
         &mut self,
-        _item: &syn::ItemFn,
-        _module: &[String],
-        _outputs: &mut Outputs,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
+        item: &syn::ItemFn,
+        module: &[String],
+        outputs: &mut Outputs,
+    ) -> Result<(), Error>;
 
     /// Add extra and custom code after the code generation part is done.
-    fn finalise_output(&mut self, _outputs: &mut Outputs) -> Result<(), Error> {
-        Ok(())
-    }
+    fn finalise_output(&mut self, _outputs: &mut Outputs) -> Result<(), Error>;
 }
 
 /// Append or create new output file
@@ -97,8 +85,8 @@ pub fn transform_fnarg_to_argcap(fnarg: &syn::FnArg) -> Option<&syn::ArgCaptured
 }
 
 pub fn transform_fnarg_to_argcap_option(fnarg: Option<&syn::FnArg>) -> Option<&syn::ArgCaptured> {
-    if fnarg.is_some() {
-        if let syn::FnArg::Captured(ref argcap) = fnarg.unwrap() {
+    if let Some(fnarg) = fnarg {
+        if let syn::FnArg::Captured(ref argcap) = fnarg {
             Some(argcap)
         } else {
             None

@@ -359,6 +359,19 @@ fn transform_const_value(expr: &syn::Expr) -> Option<ConstValue> {
         syn::Expr::Struct(ref s_struct) => transform_const_struct(s_struct),
         syn::Expr::Reference(syn::ExprReference { ref expr, .. }) => transform_const_value(&expr),
         syn::Expr::Cast(ref exprcast) => transform_const_cast(&*exprcast.expr, &*exprcast.ty),
+        syn::Expr::Unary(syn::ExprUnary {
+            ref expr, ref op, ..
+        }) => {
+            if let syn::UnOp::Neg(_) = op {
+                if let Some(ConstValue::Int(i)) = transform_const_value(&expr) {
+                    Some(ConstValue::Int(-i))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
         _ => None,
     }
 }
