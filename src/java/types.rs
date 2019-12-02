@@ -105,7 +105,7 @@ fn callback_arg_to_java(
         return Err(Error {
             level: Level::Error,
             span: None, //NONE FOR NOW
-            message: "can not handle lifetimes".into(),
+            message: "cannot handle lifetimes".into(),
         });
     }
     let mut vec = vec![];

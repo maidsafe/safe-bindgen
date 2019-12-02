@@ -180,7 +180,7 @@ impl Lang for LangC {
         buffer.push_str(&docs);
 
         let name = item.ident.to_string();
-        // Can not yet convert generics.
+        // cannot yet convert generics.
         if !item.generics.params.is_empty() {
             return Ok(());
         }
@@ -230,7 +230,7 @@ impl Lang for LangC {
                 return Err(Error {
                     level: Level::Error,
                     span: None, //NONE FOR NOW
-                    message: "bindgen can not handle `#[repr(C)]` enums with non-unit variants"
+                    message: "bindgen cannot handle `#[repr(C)]` enums with non-unit variants"
                         .into(),
                 });
             }
@@ -451,14 +451,14 @@ fn anon_rust_to_c(ty: &syn::Type) -> Result<CType, Error> {
                 Err(Error {
                     level: Level::Error,
                     span: None,
-                    message: format!("bindgen can not handle the type `{:?}`", ty),
+                    message: format!("bindgen cannot handle the type `{:?}`", ty),
                 })
             }
         }
         ty => Err(Error {
             level: Level::Error,
             span: None,
-            message: format!("bindgen can not handle the type `{:?}`", ty),
+            message: format!("bindgen cannot handle the type `{:?}`", ty),
         }),
     }
 }
@@ -496,7 +496,7 @@ fn fn_ptr_to_c(fn_ty: &syn::TypeBareFn, inner: &str) -> Result<CType, Error> {
         return Err(Error {
             level: Level::Error,
             span: None, //NONE FOR NOW
-            message: "bindgen can not handle lifetimes".into(),
+            message: "bindgen cannot handle lifetimes".into(),
         });
     }
 
@@ -570,7 +570,7 @@ fn path_to_c(path: &syn::TypePath) -> Result<CType, Error> {
             _ => Err(Error {
                 level: Level::Error,
                 span: None,
-                message: "can not handle types in other modules (except `libc` and `std::os::raw`)"
+                message: "cannot handle types in other modules (except `libc` and `std::os::raw`)"
                     .into(),
             }),
         }

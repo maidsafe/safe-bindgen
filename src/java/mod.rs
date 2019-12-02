@@ -161,7 +161,7 @@ impl common::Lang for LangJava {
             return Err(Error {
                 level: Level::Error,
                 span: None, //NONE FOR NOW
-                message: "cheddar can not handle parameterized extern functions".into(),
+                message: "cheddar cannot handle parameterized extern functions".into(),
             });
         }
 
@@ -208,7 +208,7 @@ impl common::Lang for LangJava {
             return Err(Error {
                 level: Level::Error,
                 span: None, // NONE FOR NOW
-                message: "cheddar can not handle parameterized `#[repr(C)]` structs".into(),
+                message: "cheddar cannot handle parameterized `#[repr(C)]` structs".into(),
             });
         }
 
@@ -583,7 +583,7 @@ fn callback_to_java(fn_ty: &syn::TypeBareFn, context: &Context) -> Result<String
         return Err(Error {
             level: Level::Error,
             span: None, //NONE FOR NOW
-            message: "can not handle lifetimes".into(),
+            message: "cannot handle lifetimes".into(),
         });
     }
 
