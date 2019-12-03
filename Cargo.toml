@@ -1,6 +1,6 @@
 [package]
 name = "safe_bindgen"
-version = "0.13.1"
+version = "0.13.2"
 authors = ["Sean Marshallsay <srm.1708@gmail.com>",
            "Matthew Gregan <kinetik@flim.org>",
            "MaidSafe Developers <dev@maidsafe.net>"]
