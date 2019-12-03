@@ -1,5 +1,9 @@
 # [master]
 
+# [0.13.2] 2019-11-03
+
+- Add support for negative constants in C sharp
+
 # [0.13.1] - 2019-09-02
 
 - Fix C parser erroring on enum variants with values
