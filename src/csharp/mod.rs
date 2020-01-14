@@ -602,8 +602,7 @@ impl Lang for LangCSharp {
         if self.consts_enabled && (!self.consts.is_empty() || !self.custom_consts.is_empty()) {
             let mut writer = IndentedWriter::new(INDENT_WIDTH);
 
-            emitln!(writer, "using System;");
-            emitln!(writer, "using JetBrains.Annotations;\n");
+            emitln!(writer, "using System;\n");
 
             emitln!(
                 writer,
@@ -612,7 +611,6 @@ impl Lang for LangCSharp {
             );
             writer.indent();
 
-            emitln!(writer, "[PublicAPI]");
             emitln!(
                 writer,
                 "public static class {}\n{{",
@@ -649,8 +647,7 @@ impl Lang for LangCSharp {
 
             emitln!(writer, "using System;");
             emitln!(writer, "using System.Collections.Generic;");
-            emitln!(writer, "using System.Runtime.InteropServices;");
-            emitln!(writer, "using JetBrains.Annotations;\n");
+            emitln!(writer, "using System.Runtime.InteropServices;\n");
 
             emitln!(
                 writer,

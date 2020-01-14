@@ -39,11 +39,9 @@ fn structs() {
         "using System;
          using System.Collections.Generic;
          using System.Runtime.InteropServices;
-         using JetBrains.Annotations;
 
          namespace Backend
          {
-             [PublicAPI]
              public struct Record
              {
                  public ulong Id;
@@ -119,11 +117,9 @@ fn native_structs() {
         "using System;
          using System.Collections.Generic;
          using System.Runtime.InteropServices;
-         using JetBrains.Annotations;
          
          namespace Backend
          {
-             [PublicAPI]
              public struct Entry
              {
                  public uint Id;
@@ -159,8 +155,6 @@ fn native_structs() {
                  public UIntPtr KeyLen;
                  public IntPtr RecordsPtr;
                  public UIntPtr RecordsLen;
-  
-                 // ReSharper disable once NotAccessedField.Compiler
                  public UIntPtr RecordsCap;
   
                  internal void Free()
@@ -170,7 +164,6 @@ fn native_structs() {
                  }
              }
   
-             [PublicAPI]
              public struct Wrapper
              {
                  public Entry Wrapped;
@@ -340,11 +333,9 @@ fn type_aliases() {
         "using System;
          using System.Collections.Generic;
          using System.Runtime.InteropServices;
-         using JetBrains.Annotations;
 
          namespace Backend
          {
-             [PublicAPI]
              public struct Message
              {
                  public ulong Id;
@@ -435,11 +426,9 @@ fn enums() {
         "using System;
          using System.Collections.Generic;
          using System.Runtime.InteropServices;
-         using JetBrains.Annotations;
 
          namespace Backend
          {
-             [PublicAPI]
              public enum Mode
              {
                  ReadOnly,
@@ -447,7 +436,6 @@ fn enums() {
                  ReadAndWrite,
              }
 
-             [PublicAPI]
              public enum Binary
              {
                  Zero = 0,
@@ -1060,11 +1048,9 @@ fn constants() {
     let actual = fetch(&outputs, "Constants.cs");
     let expected = indoc!(
         "using System;
-         using JetBrains.Annotations;
 
          namespace Backend
          {
-             [PublicAPI]
              public static class Constants
              {
                  public const int Number = 123;
@@ -1178,11 +1164,9 @@ fn opaque_types() {
         "using System;
          using System.Collections.Generic;
          using System.Runtime.InteropServices;
-         using JetBrains.Annotations;
 
          namespace Backend
          {
-             [PublicAPI]
              public struct Context
              {
                  public IntPtr Handle;
