@@ -226,7 +226,6 @@ pub fn emit_const(writer: &mut IndentedWriter, context: &Context, name: &str, it
 }
 
 pub fn emit_enum(writer: &mut IndentedWriter, context: &Context, name: &str, item: &Enum) {
-    emitln!(writer, "[PublicAPI]");
     emitln!(writer, "public enum {}\n{{", name);
     writer.indent();
 
@@ -250,7 +249,6 @@ pub fn emit_normal_struct(
     name: &str,
     item: &Struct,
 ) {
-    emitln!(writer, "[PublicAPI]");
     emitln!(writer, "public struct {}\n{{", name);
     writer.indent();
 
@@ -310,7 +308,6 @@ pub fn emit_wrapper_struct(
     name: &str,
     item: &Struct,
 ) {
-    emitln!(writer, "[PublicAPI]");
     emitln!(writer, "public struct {}\n{{", name);
     writer.indent();
 
@@ -515,10 +512,6 @@ fn emit_struct_field(
         emitln!(writer, "public {} {}Len;", LEN_TYPE, name);
 
         if field.has_cap {
-            emitln!(
-                writer,
-                "\n// ReSharper disable once NotAccessedField.Compiler"
-            );
             emitln!(writer, "public {} {}Cap;", LEN_TYPE, name);
         }
     } else {
