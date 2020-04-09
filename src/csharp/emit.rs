@@ -975,6 +975,7 @@ fn emit_copy_utility_suffix(
         Type::I32 => emit!(writer, "Int32{}", collection),
         Type::I64 => emit!(writer, "Int64{}", collection),
         Type::U8 => emit!(writer, "Byte{}", collection),
+        Type::String => emit!(writer, "String{}", collection),
         Type::User(ref name) => {
             emit!(writer, "Object{}", collection);
 
