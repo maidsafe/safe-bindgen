@@ -147,37 +147,11 @@ namespace @Namespace
             return Encoding.UTF8.GetString(data.ToArray());
         }
 
-        public static IntPtr CopyFromStringList(List<string> list)
+        public static IntPtr CopyFromStringList(List<string> str)
         {
-            if (list == null || list.Count == 0)
-            {
-                return IntPtr.Zero;
-            }
-
-            var size = 0;
-            foreach (var item in list)
-            {
-                size += Marshal.SizeOf(item);
-            }
-
-            var ptr = Marshal.AllocHGlobal(size);
-            var tmp = ptr;
-
-            for (var i = 0; i < list.Count; ++i)
-            {
-                tmp = Marshal.StringToHGlobalAuto(list[i]);
-                IntPtr.Add(tmp, Marshal.SizeOf(list[i]));
-            }
-
-            return ptr;
-        }
-
-        public static IntPtr CopyFromStringArray(string[] str)
-        {
-            var unmanagedPointer = Marshal.AllocHGlobal(str.Length * IntPtr.Size);
-            var ptrList = StringArrayToIntPtrArray(str);
-
-            Marshal.Copy(ptrList, 0, unmanagedPointer, str.Length);
+            var unmanagedPointer = Marshal.AllocHGlobal(str.Count * IntPtr.Size);
+            var ptrList = StringArrayToIntPtrArray(str.ToArray());
+            Marshal.Copy(ptrList, 0, unmanagedPointer, str.Count);
             return unmanagedPointer;
         }
 
@@ -189,7 +163,6 @@ namespace @Namespace
             {
                 arr[i] = Utf8StringToIntPtr(str[i]);
             }
-
             return arr;
         }
 
