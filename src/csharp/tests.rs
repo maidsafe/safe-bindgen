@@ -74,6 +74,8 @@ fn native_structs() {
             records_ptr: *const Record,
             records_len: usize,
             records_cap: usize,
+            records_changelog: *const *const c_char,
+            records_changelog_len: usize,
         }
 
         #[repr(C)]
@@ -125,6 +127,7 @@ fn native_structs() {
                  public uint Id;
                  public List<byte> Key;
                  public List<Record> Records;
+                 public List<string> RecordsChangelog;
   
                  internal Entry(EntryNative native)
                  {
@@ -132,6 +135,8 @@ fn native_structs() {
                      Key = Utils.CopyToByteList(native.KeyPtr, (int)native.KeyLen);
                      Records = Utils.CopyToObjectList<Record>(native.RecordsPtr, \
                                                              (int)native.RecordsLen);
+                     RecordsChangelog = Utils.CopyToStringList(native.RecordsChangelogPtr, \
+                                                             (int)native.RecordsChangelogLen);
                  }
   
                  internal EntryNative ToNative()
@@ -143,7 +148,9 @@ fn native_structs() {
                          KeyLen = (UIntPtr)(Key?.Count ?? 0),
                          RecordsPtr = Utils.CopyFromObjectList(Records),
                          RecordsLen = (UIntPtr)(Records?.Count ?? 0),
-                         RecordsCap = UIntPtr.Zero
+                         RecordsCap = UIntPtr.Zero,
+                         RecordsChangelogPtr = Utils.CopyFromStringList(RecordsChangelog),
+                         RecordsChangelogLen = (UIntPtr)(RecordsChangelog?.Count ?? 0)
                      };
                  }
              }
@@ -156,11 +163,14 @@ fn native_structs() {
                  public IntPtr RecordsPtr;
                  public UIntPtr RecordsLen;
                  public UIntPtr RecordsCap;
+                 public IntPtr RecordsChangelogPtr;
+                 public UIntPtr RecordsChangelogLen;
   
                  internal void Free()
                  {
                      Utils.FreeList(ref KeyPtr, ref KeyLen);
                      Utils.FreeList(ref RecordsPtr, ref RecordsLen);
+                     Utils.FreeList(ref RecordsChangelogPtr, ref RecordsChangelogLen);
                  }
              }
   
