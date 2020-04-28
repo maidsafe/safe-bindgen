@@ -129,10 +129,7 @@ fn transform_string_arg(arg_name: &str) -> JniArgResult {
 fn transform_struct_arg(arg_name: &str, arg_ty: &syn::Type) -> JniArgResult {
     // statements
     let arg_name = syn::Ident::new(arg_name, Span::call_site());
-    let struct_ty = syn::Ident::new(
-        format!("{}", quote!(#arg_ty)).as_str(),
-        Span::call_site(),
-    );
+    let struct_ty = syn::Ident::new(format!("{}", quote!(#arg_ty)).as_str(), Span::call_site());
     let stmt = quote! {
         let #arg_name = jni_unwrap!(#struct_ty::from_java(&env, #arg_name));
     };
