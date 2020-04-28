@@ -589,10 +589,7 @@ pub fn transform_callback<S: AsRef<str>>(
 
 /// Transform a Rust FFI callback into Java function signature
 fn callback_to_java(fn_ty: &syn::TypeBareFn, context: &Context) -> Result<String, Error> {
-    match unwrap!(unwrap!(fn_ty.to_owned().abi).name)
-        .value()
-        .as_str()
-    {
+    match unwrap!(unwrap!(fn_ty.to_owned().abi).name).value().as_str() {
         // If it doesn't have a C ABI it can't be called from C.
         "C" | "Cdecl" | "Stdcall" | "Fastcall" | "System" => {}
         _ => {
