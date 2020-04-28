@@ -10,7 +10,6 @@ use crate::common::{
 use crate::struct_field::StructField;
 use inflector::Inflector;
 use jni::signature::{self, JavaType, Primitive, TypeSignature};
-use proc_macro2;
 use proc_macro2::Span;
 use quote::ToTokens;
 use quote::*;
@@ -131,7 +130,7 @@ fn transform_struct_arg(arg_name: &str, arg_ty: &syn::Type) -> JniArgResult {
     // statements
     let arg_name = syn::Ident::new(arg_name, Span::call_site());
     let struct_ty = syn::Ident::new(
-        format!("{}", quote!(#arg_ty)).to_string().as_str(),
+        format!("{}", quote!(#arg_ty)).as_str(),
         Span::call_site(),
     );
     let stmt = quote! {
@@ -180,7 +179,7 @@ fn transform_callbacks_arg(
         .map(|(idx, _)| {
             let cb_fn = if multi_callback {
                 syn::Ident::new(
-                    format!("{}_{}", cb_base_name, idx).to_string().as_str(),
+                    format!("{}_{}", cb_base_name, idx).as_str(),
                     Span::call_site(),
                 )
             } else {
@@ -943,7 +942,6 @@ mod tests {
     use crate::java::Context;
     use indoc::indoc;
     use std::collections::HashMap;
-    use syn;
     use unwrap::unwrap;
 
     // TODO: add more test cases

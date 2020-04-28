@@ -591,7 +591,6 @@ pub fn transform_callback<S: AsRef<str>>(
 fn callback_to_java(fn_ty: &syn::TypeBareFn, context: &Context) -> Result<String, Error> {
     match unwrap!(unwrap!(fn_ty.to_owned().abi).name)
         .value()
-        .to_owned()
         .as_str()
     {
         // If it doesn't have a C ABI it can't be called from C.
@@ -644,7 +643,6 @@ fn callback_to_java(fn_ty: &syn::TypeBareFn, context: &Context) -> Result<String
 #[cfg(test)]
 mod tests {
     use super::*;
-    use syn;
 
     #[test]
     fn cb_names() {

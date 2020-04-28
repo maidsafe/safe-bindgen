@@ -199,7 +199,7 @@ impl Lang for LangC {
         self.append_to_header(buffer, module, outputs)?;
 
         self.decls
-            .insert(name.to_string(), header_name(module, &self.lib_name)?);
+            .insert(name, header_name(module, &self.lib_name)?);
 
         Ok(())
     }
@@ -320,7 +320,7 @@ impl Lang for LangC {
         self.append_to_header(buffer, module, outputs)?;
 
         self.decls
-            .insert(name.to_string(), header_name(module, &self.lib_name)?);
+            .insert(name, header_name(module, &self.lib_name)?);
 
         Ok(())
     }

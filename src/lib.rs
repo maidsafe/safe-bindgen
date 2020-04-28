@@ -213,7 +213,7 @@ impl Bindgen {
         file_name: String,
         source: String,
     ) -> Result<(), Vec<Error>> {
-        let module = convert_lib_path_to_module(&PathBuf::from(file_name.clone()));
+        let module = convert_lib_path_to_module(&PathBuf::from(file_name));
 
         let _ast: syn::File = unwrap!(syn::parse_str(&source));
 
