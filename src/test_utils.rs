@@ -1,10 +1,8 @@
 use crate::common::{Lang, Outputs};
 use crate::{parse, Error};
 use colored::*;
-use diff;
 use std::collections::HashMap;
 use std::fmt::Write;
-use syn;
 use unwrap::unwrap;
 
 macro_rules! compile {

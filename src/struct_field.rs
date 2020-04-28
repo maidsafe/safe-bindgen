@@ -115,7 +115,6 @@ fn is_array_meta_field(field: &syn::Field) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{transform_struct_fields, StructField};
-    use syn;
     use unwrap::unwrap;
 
     #[test]

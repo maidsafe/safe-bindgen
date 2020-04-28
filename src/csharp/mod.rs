@@ -419,7 +419,7 @@ impl Lang for LangCSharp {
             span: None, //NONE FOR NOW
             message: format!("bindgen cannot handle struct {}", item.ident.to_string()),
         })?;
-        let name = name.to_string();
+        let name = name;
         self.structs.push(Snippet { docs, name, item });
         self.resolve_native_types();
 
