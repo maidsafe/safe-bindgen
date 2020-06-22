@@ -7,8 +7,8 @@ authors = ["Sean Marshallsay <srm.1708@gmail.com>",
 description = "A library to automatically generate C, Java, and C# files from Rust source files."
 readme = "README.md"
 keywords = ["c", "header", "ffi"]
-homepage = "https://github.com/maidsafe/safe_bindgen"
-repository = "https://github.com/maidsafe/safe_bindgen"
+homepage = "https://github.com/maidsafe/safe-bindgen"
+repository = "https://github.com/maidsafe/safe-bindgen"
 documentation = "https://docs.rs/safe_bindgen"
 license = "MIT OR BSD-3-Clause"
 edition = "2018"
@@ -23,18 +23,18 @@ doc = false
 path = "src/bin/bindgen.rs"
 
 [dependencies]
-clap = "~2.33.0"
+clap = "2.33.0"
 toml = "~0.5.0"
 Inflector = "~0.11.4"
 jni = "~0.12.0"
 quote = "~0.6.11"
 rustfmt = "~0.10.0"
 petgraph = "~0.4.13"
-unwrap = "~1.2.0"
-syn = {version = "0.15.26", features = ["parsing","full","derive","proc-macro","extra-traits"]}
+unwrap = "1.2.0"
+syn = {version = "~0.15.26", features = ["parsing","full","derive","proc-macro","extra-traits"]}
 proc-macro2 = "~0.4.27"
 
 [dev-dependencies]
-colored = "~1.6.0"
+colored = "1.6.0"
 diff = "~0.1.11"
 indoc = "~0.3.1"
