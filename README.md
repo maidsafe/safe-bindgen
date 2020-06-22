@@ -1,4 +1,4 @@
-# safe_bindgen
+# safe-bindgen
 
 |Crate|Documentation|Linux/macOS|Windows|Issues|
 |:---:|:-----------:|:--------:|:-----:|:----:|
