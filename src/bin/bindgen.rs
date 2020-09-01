@@ -1,6 +1,6 @@
 use clap::{self, crate_version};
 use jni::signature::{JavaType, Primitive};
-use safe_bindgen::{Bindgen, LangC, LangCSharp, LangJava};
+use sn_bindgen::{Bindgen, LangC, LangCSharp, LangJava};
 use std::collections::HashMap;
 use unwrap::unwrap;
 
