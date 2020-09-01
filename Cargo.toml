@@ -1,5 +1,5 @@
 [package]
-name = "safe_bindgen"
+name = "sn_bindgen"
 version = "0.13.2"
 authors = ["Sean Marshallsay <srm.1708@gmail.com>",
            "Matthew Gregan <kinetik@flim.org>",
@@ -7,14 +7,14 @@ authors = ["Sean Marshallsay <srm.1708@gmail.com>",
 description = "A library to automatically generate C, Java, and C# files from Rust source files."
 readme = "README.md"
 keywords = ["c", "header", "ffi"]
-homepage = "https://github.com/maidsafe/safe-bindgen"
-repository = "https://github.com/maidsafe/safe-bindgen"
-documentation = "https://docs.rs/safe_bindgen"
+homepage = "https://github.com/maidsafe/sn_bindgen"
+repository = "https://github.com/maidsafe/sn_bindgen"
+documentation = "https://docs.rs/sn_bindgen"
 license = "MIT OR BSD-3-Clause"
 edition = "2018"
 
 [lib]
-name = "safe_bindgen"
+name = "sn_bindgen"
 path = "src/lib.rs"
 
 [[bin]]
