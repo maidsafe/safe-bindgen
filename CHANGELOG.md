@@ -1,5 +1,10 @@
 # [master]
 
+# [0.13.3] 2020-09-01
+
+- rename crate to sn_bindgen as per new naming convention
+- add option to copy to/from List<string>
+
 # [0.13.2] 2019-11-03
 
 - Add support for negative constants in C sharp

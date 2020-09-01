@@ -718,7 +718,7 @@ fn resolve_alias(aliases: &HashMap<String, Type>, new_ty: &mut Type) {
         _ => (),
     }
 
-    mem::replace(new_ty, orig_new_ty);
+    let _ = mem::replace(new_ty, orig_new_ty);
 }
 
 fn lookup_alias<'a>(aliases: &'a HashMap<String, Type>, name: &str) -> Option<&'a Type> {
