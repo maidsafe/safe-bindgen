@@ -1,7 +1,7 @@
 //! `sn_bindgen` is a library based on moz-cheddar for converting Rust source files
 //! into Java and C# bindings.
 //!
-//! It is built specifically for the SAFE Client Libs project.
+//! It is built specifically for the Safe Network Client project.
 
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/maidsafe/QA/master/Images/maidsafe_logo.png",
