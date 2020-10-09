@@ -556,11 +556,7 @@ pub fn transform_native_fn(
 }
 
 fn check_type_never(ty: &syn::Type) -> bool {
-    if let syn::Type::Never(ref _never) = ty {
-        true
-    } else {
-        false
-    }
+    matches!(ty, syn::Type::Never(ref _never))
 }
 
 /// Turn a Rust callback function type into a Java interface.

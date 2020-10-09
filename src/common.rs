@@ -121,10 +121,7 @@ pub fn is_user_data_arg(arg: &syn::ArgCaptured) -> bool {
         syn::Pat::Ident(ref pat) if pat.ident == "user_data" => {}
         _ => return false,
     }
-    match arg.ty {
-        syn::Type::Ptr(ref pat) if pat.into_token_stream().to_string() == "* mut c_void" => true,
-        _ => false,
-    }
+    matches!(arg.ty, syn::Type::Ptr(ref pat) if pat.into_token_stream().to_string() == "* mut c_void")
 }
 
 pub fn is_user_data_arg_barefn(arg: &syn::BareFnArg) -> bool {
@@ -136,10 +133,7 @@ pub fn is_user_data_arg_barefn(arg: &syn::BareFnArg) -> bool {
     {
         return false;
     }
-    match arg.ty {
-        syn::Type::Ptr(ref pat) if pat.into_token_stream().to_string() == "* mut c_void" => true,
-        _ => false,
-    }
+    matches!(arg.ty, syn::Type::Ptr(ref pat) if pat.into_token_stream().to_string() == "* mut c_void")
 }
 
 /// Check the function argument is `result: *const FfiResult`
@@ -249,11 +243,7 @@ pub fn check_repr_c(attr: &syn::Attribute) -> bool {
         {
             match word.nested.first() {
                 Some(word) => {
-                    match word.into_value() {
-                        // Return true only if attribute is #[repr(C)].
-                        syn::NestedMeta::Meta(ref item) if item.name() == "C" => true,
-                        _ => false,
-                    }
+                    matches!(word.into_value(), syn::NestedMeta::Meta(ref item) if item.name() == "C")
                 }
                 _ => false,
             }
@@ -286,11 +276,10 @@ pub fn retrieve_docstring(attr: &syn::Attribute, prepend: &str) -> Option<String
 
 /// Returns whether the calling convention of the function is compatible with C (i.e. `extern "C"`).
 pub fn is_extern(abi: syn::Abi) -> bool {
-    match unwrap!(abi.name).value().as_str() {
-        // If it doesn't have a C ABI it can't be called from C.
-        "C" | "Cdecl" | "Stdcall" | "Fastcall" | "System" => true,
-        _ => false,
-    }
+    matches!(
+        unwrap!(abi.name).value().as_str(),
+        "C" | "Cdecl" | "Stdcall" | "Fastcall" | "System"
+    )
 }
 
 /// Extracts the int literal from the expression, if it exists.
