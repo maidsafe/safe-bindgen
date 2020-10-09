@@ -44,11 +44,7 @@ pub enum Type {
 
 impl Type {
     pub fn is_dynamic_array(&self) -> bool {
-        if let Type::Array(_, ArraySize::Dynamic) = *self {
-            true
-        } else {
-            false
-        }
+        matches!(*self, Type::Array(_, ArraySize::Dynamic))
     }
 }
 
