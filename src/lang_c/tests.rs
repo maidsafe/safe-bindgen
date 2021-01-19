@@ -6,7 +6,7 @@ use unwrap::unwrap;
 
 #[test]
 fn sanitise_id() {
-    assert!(super::sanitise_id("") == "");
+    assert!(super::sanitise_id("").is_empty());
     assert!(super::sanitise_id("!@£$%^&*()_+") == "_");
     // https://github.com/Sean1708/rusty-cheddar/issues/29
     assert!(super::sanitise_id("filename.h") == "filenameh");

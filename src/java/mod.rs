@@ -249,7 +249,7 @@ impl common::Lang for LangJava {
 
         // Class fields
         buffer.push_str(&generate_class_fields(&fields)?);
-        buffer.push_str("\n");
+        buffer.push('\n');
 
         // Default constructor that should initialise object fields
         buffer.push_str(&generate_default_constructor(&name, &fields)?);
@@ -259,7 +259,7 @@ impl common::Lang for LangJava {
 
         // Getters & setters
         buffer.push_str(&generate_getters_setters(&fields)?);
-        buffer.push_str("}");
+        buffer.push('}');
 
         let jni = jni::generate_struct(&struct_fields, &orig_name, &name, &self.context);
         append_output(jni, "jni.rs", outputs);
@@ -478,7 +478,7 @@ pub fn transform_native_fn(
                 let jni_cb_name = format!("call_{}", cb_class);
                 if !context.generated_jni_cbs.contains(&jni_cb_name) {
                     let mut jni = jni::generate_jni_callback(bare_fn, &jni_cb_name, context);
-                    jni.push_str("\n");
+                    jni.push('\n');
 
                     append_output(jni, "jni.rs", outputs);
                     context.generated_jni_cbs.insert(jni_cb_name);
@@ -549,7 +549,7 @@ pub fn transform_native_fn(
     jni.push_str(&jni::generate_jni_function(
         &vec, attrs, name, &java_name, context, outputs,
     ));
-    jni.push_str("\n");
+    jni.push('\n');
     append_output(jni, "jni.rs", outputs);
 
     Ok(())

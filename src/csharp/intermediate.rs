@@ -304,7 +304,7 @@ pub fn transform_struct(fields: syn::Fields) -> Option<Struct> {
 pub fn is_user_data(name: &str, ty: &Type) -> bool {
     if let Type::Pointer(ref ty) = *ty {
         if let Type::Unit = **ty {
-            return name == "" || name == "user_data";
+            return name.is_empty() || name == "user_data";
         }
     }
 

@@ -219,7 +219,7 @@ fn path_to_java(
 
         match module.as_str() {
             "std::os::raw" | "libc" => {
-                Ok(rust_ty_to_java(ty.as_str()).unwrap_or_else(|| JavaType::Object(ty)))
+                Ok(rust_ty_to_java(ty.as_str()).unwrap_or(JavaType::Object(ty)))
             }
             ty => Err(Error {
                 level: Level::Error,
