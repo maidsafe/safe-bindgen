@@ -314,7 +314,7 @@ impl Lang for LangC {
             self.add_dependencies(module, &ty.1)?;
             buffer.push_str(&format!("    {};\n", ty));
         }
-        buffer.push_str("}");
+        buffer.push('}');
 
         buffer.push_str(&format!(" {};\n\n", name));
         self.append_to_header(buffer, module, outputs)?;

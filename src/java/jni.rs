@@ -314,7 +314,7 @@ pub fn generate_jni_function(
 
             if !context.generated_jni_cbs.contains(&full_cb_name) {
                 let mut jni = generate_multi_jni_callback(cb, &full_cb_name, idx, count, context);
-                jni.push_str("\n");
+                jni.push('\n');
 
                 append_output(jni, "jni.rs", outputs);
                 context.generated_jni_cbs.insert(full_cb_name);
@@ -339,7 +339,7 @@ pub fn generate_jni_function(
     for attr in attrs {
         if attr.to_owned().path.into_token_stream().to_string() == "cfg" {
             output.push_str(format!("{}", quote!(#attr)).as_str());
-            output.push_str("\n");
+            output.push('\n');
         }
     }
 
