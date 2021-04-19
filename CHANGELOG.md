@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.13.16](https://github.com/maidsafe/sn_bindgen/compare/v0.13.15...v0.13.16) (2021-04-19)
+
 ### [0.13.15](https://github.com/maidsafe/sn_bindgen/compare/v0.13.14...v0.13.15) (2021-04-19)
 
 ### [0.13.14](https://github.com/maidsafe/sn_bindgen/compare/v0.13.13...v0.13.14) (2021-04-06)
