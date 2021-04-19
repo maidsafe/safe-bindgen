@@ -1,6 +1,6 @@
 [package]
 name = "sn_bindgen"
-version = "0.13.14"
+version = "0.13.15"
 authors = [
   "Sean Marshallsay <srm.1708@gmail.com>",
   "Matthew Gregan <kinetik@flim.org>",
