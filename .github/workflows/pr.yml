@@ -17,7 +17,7 @@ env:
 
 jobs:
   checks:
-    if: "! startsWith(github.event.head_commit.message, 'chore(release):')"
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     name: Clippy & fmt
     runs-on: ubuntu-latest
     steps:
@@ -49,7 +49,7 @@ jobs:
         run: ./scripts/clippy
 
   check_pr_size:
-    if: "! startsWith(github.event.head_commit.message, 'chore(release):')"
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     name: Check PR size doesn't break set limit
     runs-on: ubuntu-latest
     steps:
@@ -61,7 +61,7 @@ jobs:
           max_lines_changed: 200
   
   coverage:
-    if: "! startsWith(github.event.head_commit.message, 'chore(release):')"
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     name: Code coverage check
     runs-on: ubuntu-latest
     steps:
@@ -101,7 +101,7 @@ jobs:
           parallel-finished: true
 
   cargo-udeps:
-    if: "! startsWith(github.event.head_commit.message, 'chore(release):')"
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     name: Unused dependency check
     runs-on: ubuntu-latest
     steps:
@@ -120,7 +120,7 @@ jobs:
           cargo +nightly udeps --all-targets
 
   cargo-deny:
-    if: "! startsWith(github.event.head_commit.message, 'chore(release):')"
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -132,7 +132,7 @@ jobs:
     - uses: EmbarkStudios/cargo-deny-action@v1
   
   test:
-    if: "! startsWith(github.event.head_commit.message, 'chore(release):')"
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     name: Test
     runs-on: ${{ matrix.os }}
     strategy:
@@ -163,7 +163,7 @@ jobs:
 
   # Test publish using --dry-run.
   test-publish:
-    if: "! startsWith(github.event.head_commit.message, 'chore(release):')"
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     name: Test Publish
     runs-on: ubuntu-latest
     steps:
