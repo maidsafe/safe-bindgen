@@ -156,7 +156,7 @@ impl Bindgen {
         &self,
         lang: &mut L,
         outputs: &mut Outputs,
-        path: &PathBuf,
+        path: &Path,
     ) -> Result<(), Vec<Error>> {
         let base_path = unwrap!(path.parent());
         let mod_path: String = unwrap!(path.to_str()).to_string();
