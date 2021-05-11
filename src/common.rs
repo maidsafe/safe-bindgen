@@ -85,12 +85,8 @@ pub fn transform_fnarg_to_argcap(fnarg: &syn::FnArg) -> Option<&syn::ArgCaptured
 }
 
 pub fn transform_fnarg_to_argcap_option(fnarg: Option<&syn::FnArg>) -> Option<&syn::ArgCaptured> {
-    if let Some(fnarg) = fnarg {
-        if let syn::FnArg::Captured(ref argcap) = fnarg {
-            Some(argcap)
-        } else {
-            None
-        }
+    if let Some(syn::FnArg::Captured(ref argcap)) = fnarg {
+        Some(argcap)
     } else {
         None
     }
